@@ -1,0 +1,1 @@
+blacklist and graylist contain uncensored derogatory words. do not continue to those files unless you are ok with this
