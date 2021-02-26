@@ -15,12 +15,12 @@ birdfacts = ["Lucy's warbler is the smallest known species of warbler!", "my pfp
 wordblacklist = open("config/blacklist.txt","r")
 wordblacklist = wordblacklist.readlines()
 wordblacklist = [x.replace('\n', '') for x in wordblacklist]
-print(str(wordblacklist))
+print("Loaded " + str(len(wordblacklist)) + " words from the blacklistlist")
 
 wordgraylist = open("config/graylist.txt","r")
 wordgraylist = wordgraylist.readlines()
 wordgraylist = [x.replace('\n', '') for x in wordgraylist]
-print(str(wordgraylist))
+print("Loaded " + str(len(wordgraylist)) + " words from the graylist")
 
 async def tiers(offender, tier, reason):
   if tier == 1:
@@ -73,6 +73,8 @@ async def tiers(offender, tier, reason):
     return
 
 bot.remove_command("help")
+
+print("beginning login")
 
 @bot.event
 async def on_ready():
