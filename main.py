@@ -1,26 +1,32 @@
 # region: setup
-import discord
-import os
-from dotenv import load_dotenv
-load_dotenv()
-from discord.ext import commands
-from discord.ext.commands import has_permissions, CheckFailure
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-bot = commands.Bot(command_prefix="&")
-import random
 import asyncio
 import csv
+import os
+import random
+import codecs
+
+import discord
+from discord.ext import commands
+from discord.ext.commands import CheckFailure, has_permissions
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+bot = commands.Bot(command_prefix="&")
 
 birdfacts = ["Lucy's warbler is the smallest known species of warbler!", "my pfp came from <https://www.drawingtenthousandbirds.com/new-blog-1/2015/4/18/why-a-yellow-warbler>", "There are 119 species of warbler"]
 
 wordblacklist = open("config/blacklist.txt","r")
 wordblacklist = wordblacklist.readlines()
 wordblacklist = [x.replace('\n', '') for x in wordblacklist]
+wordblacklist = [codecs.encode(x, 'rot_13') for x in wordblacklist]
 print("Loaded " + str(len(wordblacklist)) + " words from the blacklistlist")
 
 wordgraylist = open("config/graylist.txt","r")
 wordgraylist = wordgraylist.readlines()
 wordgraylist = [x.replace('\n', '') for x in wordgraylist]
+wordgraylist = [codecs.encode(x, 'rot_13') for x in wordgraylist]
 print("Loaded " + str(len(wordgraylist)) + " words from the graylist")
 
 bot.remove_command("help")
@@ -75,12 +81,12 @@ async def checkpoints(ctx, user: discord.Member):
         else:
             if row[0] == str(user.id):
                 success = True
-                await ctx.channel.send("**Ok!** we found the user! at time of checking, they have " + row[1] + " points")
+                await ctx.channel.send("**Ok!** we found the user! at time of checking, they have **" + row[1] + "** points")
         line_count = line_count + 1
   if success == True:
     pass
   else:
-    await ctx.channel.send("Awesome, " + user.mention + " Currently has no points. thanks for being a great person!")
+    await ctx.channel.send("**Awesome**, " + user.mention + " Currently has **no points**. thanks for being a great person!")
 
 @bot.command()
 async def help(ctx):
@@ -104,19 +110,19 @@ async def point(ctx, ammount, user: discord.Member, *, reason):
               if row[0] == str(user.id):
                   success = True
                   mathishard = int(row[1]) + int(ammount)
-                  await ctx.channel.send("We already have the user. they have" + row[1] + " points. after this, they will have " + str(mathishard) + " points. are you sure? (y or n)")
+                  await ctx.channel.send("We already have the user. they have **" + row[1] + "** points. after this, they will have **" + str(mathishard) + "** points. **are you sure?** (**y** or **n**)")
                   break
           line_count = line_count + 1
     if not success:
-      await ctx.channel.send("This will give the user **" + str(ammount) + "** points. are you sure? (y or n)")
+      await ctx.channel.send("This will give the user **" + str(ammount) + "** points. **are you sure?** (**y** or **n**)")
   def check(message):
       return message.author == author and message.content.startswith("y") or message.content.startswith("n")
   try:
     message = await bot.wait_for('message', timeout=60.0, check=check)
     if message.content.startswith("y"):
-      await ctx.channel.send("Got it! giving " + user.mention + " the treatment they deserve!")
+      await ctx.channel.send("**Got it!** giving " + user.mention + " the treatment they deserve!")
     elif message.content.startswith("n"):
-      await ctx.channel.send("aborted")
+      await ctx.channel.send("**Aborted**")
   except asyncio.TimeoutError:
           return
 
