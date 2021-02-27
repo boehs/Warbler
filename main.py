@@ -9,11 +9,13 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import CheckFailure, has_permissions
 from dotenv import load_dotenv
+from discord_slash import SlashCommand, SlashContext
 
 load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 bot = commands.Bot(command_prefix="&")
+slash = SlashCommand(bot, sync_commands=True)
 
 birdfacts = ["Lucy's warbler is the smallest known species of warbler!", "my pfp came from <https://www.drawingtenthousandbirds.com/new-blog-1/2015/4/18/why-a-yellow-warbler>", "There are 119 species of warbler"]
 
@@ -88,13 +90,13 @@ async def checkpoints(ctx, user: discord.Member):
   else:
     await ctx.channel.send("**Awesome**, " + user.mention + " Currently has **no points**. thanks for being a great person!")
 
-@bot.command()
+@slash.slash(name="help")
 async def help(ctx):
   async with ctx.typing():
     await asyncio.sleep(1)
   await ctx.channel.send("**Hey! 👋** \nmy job is mostly to help keep the chat clean, and give our wonderful helpers a hand, but there is some useful stuff you should know!\n**Ping Me** if something needs immediate (like right right right now) attention\n**DM me** to contact the mods if something needs private attention\n\n**Oh!** One last thing. here is a random bird fact!\n> " + random.choice(birdfacts))
 
-@bot.command()
+@slash.slash(name="point")
 @commands.has_role("Helper")
 async def point(ctx, ammount, user: discord.Member, *, reason):
   author = ctx.author
