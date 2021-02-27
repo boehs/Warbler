@@ -110,7 +110,7 @@ async def point(ctx, ammount, user: discord.Member, *, reason):
     if not success:
       await ctx.channel.send("This will give the user **" + str(ammount) + "** points. are you sure? (y or n)")
   def check(message):
-      return message.author == author and message.content.startswith == "y" or "n"
+      return message.author == author and message.content.startswith("y") or message.content.startswith("n")
   try:
     message = await bot.wait_for('message', timeout=60.0, check=check)
     if message.content.startswith("y"):
