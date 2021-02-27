@@ -1,1 +1,1 @@
-blacklist and graylist contain uncensored derogatory words. do not continue to those files unless you are ok with this
+blacklist and graylist contain ROT13 encoded derogatory words. do not continue or attempt to unencode those files unless you are ok with this
