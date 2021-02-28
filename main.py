@@ -14,10 +14,14 @@ from dotenv import load_dotenv
 
 import config
 
+intents = discord.Intents.default()
+intents.members = True
+intents.presences = True
+
 load_dotenv()
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-bot = commands.Bot(command_prefix="&")
+bot = commands.Bot(command_prefix="&", intents=intents)
 slash = SlashCommand(bot, sync_commands=True)
 
 birdfacts = ["Lucy's warbler is the smallest known species of warbler!", "my pfp came from <https://www.drawingtenthousandbirds.com/new-blog-1/2015/4/18/why-a-yellow-warbler>", "There are 119 species of warbler"]
@@ -103,14 +107,13 @@ async def on_message(message):
   if mention in message.content:
     users = []
     role = discord.utils.get(message.guild.roles,name="Helper")
-    for member in message.guild.members:
-      memberis = member.id
-      if role in member.roles: # does member have the specified role?
-        if member.status == discord.Status.online:
-          users.append(memberis)
-    await message.channel.send("⚠️ " + message.author.mention + " Mentioned me!")
-    print([f"<@!{i}>" for i in users])
-    await message.channel.send([f"<@!{i}>" for i in users])
+    for user in message.guild.members:
+        if role in user.roles and str(user.status) == "online":
+          if user == bot.user:
+            pass
+          else:
+            users.append(user.id)
+    await message.channel.send("⚠️ " + message.author.mention + " Mentioned me! (Pinging all online mods... this should be good 👀) \n" + "".join(f"<@!{user}>, " for user in users))
   await bot.process_commands(message)
 
 # endregion
@@ -168,16 +171,16 @@ async def point(ctx, amount, user: discord.Member):
       if success:
         with connection:
           with connection.cursor() as cursor:
-              sql = "UPDATE punish SET punishTier = %s WHERE userId = %s"
-              var = (int(mathishard), int(user.id))
+              sql = "UPDATE punish SET punishTier = %s, punishTime = %s WHERE userId = %s"
+              var = (int(mathishard), int(time.time()), int(user.id))
               cursor.execute(sql, var)
 
           connection.commit()        
       elif not success:
         with connection:
           with connection.cursor() as cursor:
-              sql = "INSERT INTO punish ( userId, punishTier ) VALUES ( %s, %s )"
-              var = (int(user.id), int(amount))
+              sql = "INSERT INTO punish ( userId, punishTier, punishTime ) VALUES ( %s, %s, %s )"
+              var = (int(user.id), int(amount), int(time.time()))
               cursor.execute(sql, var)
 
           connection.commit()
