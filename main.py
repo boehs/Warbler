@@ -122,7 +122,6 @@ async def on_message(message):
 @slash.slash(name="checkpoints",guild_ids=config.guild_ids,description="check the points of any user ever!")
 async def checkpoints(ctx, user: discord.Member):
   await ctx.channel.send("**Hey! 👋** Give me a sec while I look that up for you!")
-  success = False
   async with ctx.channel.typing():
     await asyncio.sleep(1)
   with connection:
@@ -175,7 +174,7 @@ async def point(ctx, amount, user: discord.Member):
               var = (int(mathishard), int(time.time()), int(user.id))
               cursor.execute(sql, var)
 
-          connection.commit()        
+          connection.commit()
       elif not success:
         with connection:
           with connection.cursor() as cursor:
