@@ -1,3 +1,4 @@
 .env
 punish.csv
 test*.*
+config.py
