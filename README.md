@@ -1,0 +1,2 @@
+# Warbler
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/cf2354a9aed6431b88c3c03a9e2ca902)](https://app.codacy.com/gh/boehs/Warbler?utm_source=github.com&utm_medium=referral&utm_content=boehs/Warbler&utm_campaign=Badge_Grade_Settings)
