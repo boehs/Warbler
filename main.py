@@ -1,17 +1,16 @@
 # region: setup
 import asyncio
 import codecs
-import csv
 import os
 import random
+import time
 
 import discord
-import mysql.connector
-from discord.ext import commands
-from discord.ext.commands import CheckFailure, has_permissions
-from discord_slash import SlashCommand, SlashContext
-from dotenv import load_dotenv
 import pymysql.cursors
+from discord.ext import commands
+from discord.ext.commands import *
+from discord_slash import *
+from dotenv import load_dotenv
 
 import config
 
@@ -66,7 +65,20 @@ with connection:
 
 # endregion
 
-print("beginning login")
+print("Beginning login")
+
+# region: defs
+async def cleanup():
+  with connection:
+    with connection.cursor() as cursor:
+        sql = "DELETE FROM punish WHERE punishTier = 0 AND punishType is NULL"
+
+        cursor.execute(sql)
+
+    connection.commit()
+# endregion
+
+# region: events
 
 @bot.event
 async def on_ready():
@@ -101,27 +113,26 @@ async def on_message(message):
     await message.channel.send([f"<@!{i}>" for i in users])
   await bot.process_commands(message)
 
+# endregion
+
+# region: slashes
 @slash.slash(name="checkpoints",guild_ids=config.guild_ids,description="check the points of any user ever!")
 async def checkpoints(ctx, user: discord.Member):
   await ctx.channel.send("**Hey! 👋** Give me a sec while I look that up for you!")
   success = False
   async with ctx.channel.typing():
     await asyncio.sleep(1)
-  with open('database/punish.csv') as csv_file:
-    csv_reader = csv.reader(csv_file, delimiter=',')
-    line_count = 0
-    for row in csv_reader:
-        if line_count == 0:
-            pass
-        else:
-            if row[0] == str(user.id):
-                success = True
-                await ctx.channel.send("**Ok!** we found the user! at time of checking, they have **" + row[1] + "** points")
-        line_count = line_count + 1
-  if success == True:
-    pass
-  else:
-    await ctx.channel.send("**Awesome**, " + user.mention + " Currently has **no points**. thanks for being a great person!")
+  with connection:
+    with connection.cursor() as cursor:
+        try:
+          sql = "SELECT punishTier FROM punish WHERE userId = %s"
+          cursor.execute(sql, user.id)
+          result = cursor.fetchone()
+
+          result = result['punishTier']
+          await ctx.channel.send("**Ok!** we found the user! at time of checking, they have **" + str(result) + "** points")
+        except TypeError:
+          await ctx.channel.send("**Awesome**, " + user.mention + " Currently has **no points**. thanks for being a great person!")
 
 @slash.slash(name="help",guild_ids=config.guild_ids,description="you should know this already - but maybe you just want bird facts")
 async def help(ctx):
@@ -129,24 +140,25 @@ async def help(ctx):
 
 @slash.slash(name="point",guild_ids=config.guild_ids, description="Gives users points for being bad children")
 @commands.has_role("Helper")
-async def point(ctx, amount, user: discord.Member, *, reason):
+async def point(ctx, amount, user: discord.Member):
   author = ctx.author
   success = False
-  with open('database/punish.csv') as csv_file:
-    csv_reader = csv.reader(csv_file, delimiter=',')
-    line_count = 0
-    for row in csv_reader:
-        if line_count == 0:
-            pass
+  with connection:
+    with connection.cursor() as cursor:
+        try:
+            sql = "SELECT punishTier FROM punish WHERE userId = %s"
+            cursor.execute(sql, user.id)
+            result = cursor.fetchone()
+            result = result['punishTier']
+        except TypeError:
+            success = False
         else:
-            if row[0] == str(user.id):
-                success = True
-                mathishard = int(row[1]) + int(amount)
-                await ctx.channel.send("We already have the user. they have **" + row[1] + "** points. after this, they will have **" + str(mathishard) + "** points. **are you sure?** (**y** or **n**)")
-                break
-        line_count = line_count + 1
-    if not success:
-      await ctx.channel.send("This will give the user **" + str(amount) + "** points. **are you sure?** (**y** or **n**)")
+            success = True
+            mathishard = int(result) + int(amount)
+            await ctx.channel.send("We already have the user. they have **" + str(result) + "** points. after this, they will have **" + str(mathishard) + "** points. **are you sure?** (**y** or **n**)")
+  if not success:
+    await ctx.channel.send("This will give the user **" + str(amount) + "** points. **are you sure?** (**y** or **n**)")
+
   def check(message):
       return message.author == author and message.content.startswith("y") or message.content.startswith("n")
   try:
@@ -154,14 +166,25 @@ async def point(ctx, amount, user: discord.Member, *, reason):
     if message.content.startswith("y"):
       await ctx.channel.send("**Got it!** giving " + user.mention + " the treatment they deserve!")
       if success:
-        pass
+        with connection:
+          with connection.cursor() as cursor:
+              sql = "UPDATE punish SET punishTier = %s WHERE userId = %s"
+              var = (int(mathishard), int(user.id))
+              cursor.execute(sql, var)
+
+          connection.commit()        
       elif not success:
-        query = "INSERT INTO punish ( userId, punishTier ) VALUES ( %s, %s )"
-        val = [(int(user.id), int(amount))]
-        executemany_query(connection,query,val)
+        with connection:
+          with connection.cursor() as cursor:
+              sql = "INSERT INTO punish ( userId, punishTier ) VALUES ( %s, %s )"
+              var = (int(user.id), int(amount))
+              cursor.execute(sql, var)
+
+          connection.commit()
+      await cleanup()
     elif message.content.startswith("n"):
       await ctx.channel.send("**Aborted**")
   except asyncio.TimeoutError:
           return
-
+# endregion
 bot.run(DISCORD_TOKEN)
