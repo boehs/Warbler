@@ -9,6 +9,7 @@ import discord
 import pymysql.cursors
 from discord.ext import commands
 from discord.ext.commands import *
+from discord.ext.tasks import *
 from discord_slash import *
 from dotenv import load_dotenv
 
@@ -69,9 +70,8 @@ with connection:
 
 # endregion
 
-print("Beginning login")
-
 # region: defs
+# cleans users that have 0 points
 async def cleanup():
   with connection:
     with connection.cursor() as cursor:
@@ -80,6 +80,19 @@ async def cleanup():
         cursor.execute(sql)
 
     connection.commit()
+    print("Completed cleanup")
+# remove a point from those with over two weeks of age
+@loop(seconds=300)
+async def rempoint():
+  with connection:
+    with connection.cursor() as cursor:
+        sql = "UPDATE punish SET punishTier = punishTier - 1 WHERE updateTime < (NOW() - INTERVAL 20160 MINUTE);"
+
+        cursor.execute(sql)
+
+    connection.commit()
+  print("Completed auto point removal")
+  await cleanup()
 # endregion
 
 # region: events
@@ -189,4 +202,7 @@ async def point(ctx, amount, user: discord.Member):
   except asyncio.TimeoutError:
           return
 # endregion
+
+rempoint.start()
+print("Beginning login")
 bot.run(DISCORD_TOKEN)
