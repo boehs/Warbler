@@ -2,3 +2,6 @@
 punish.csv
 test*.*
 config.py
+punishconfig.sql
+__pycache__
+warbler*
