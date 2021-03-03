@@ -72,6 +72,20 @@ with connection:
 
 # region: defs
 # cleans users that have 0 points
+
+async def getusertier(user):
+  with connection:
+    with connection.cursor() as cursor:
+      try:
+        sql = "SELECT punishTier FROM punish WHERE userId = %s"
+        cursor.execute(sql, user.id)
+        result = cursor.fetchone()
+        result = result['punishTier']
+        success = True
+      except:
+        success = False
+  return result
+  
 async def cleanup():
   with connection:
     with connection.cursor() as cursor:
@@ -93,6 +107,87 @@ async def rempoint():
     connection.commit()
   print("Completed auto point removal")
   await cleanup()
+
+async def punish(offender, tier, reason):
+
+  def mute(offender, time):
+    with connection:
+      with connection.cursor() as cursor:
+          sql = "UPDATE punish SET punishLength = %s, punishType = 'm' WHERE userId = %s"
+          var = (time, offender.id)
+          cursor.execute(sql, var)
+
+      connection.commit()
+  def warn(offender,final):
+    # f = final warning
+    if final == True:
+      pass
+    else:
+      pass
+  def ban(offender, time):
+    if time == "forever":
+      pass
+    else:
+      pass
+        
+  tier = getusertier(offender) + tier
+  if tier == 1:
+  # Warn offender
+    warn(offender,False)
+  elif tier == 2:
+  # Final warn offender
+    warn(offender,True)
+  elif tier == 3:
+  # Remove member role from offender (read the rules)
+    pass
+  elif tier == 4:
+  # Mute offender for 5 minutes
+    t = 300
+    mute(offender, t)
+  elif tier == 5:
+  # Mute offender for 10 minutes
+    t = 600
+    mute(offender, t)
+  elif tier == 6:
+  # Mute offender for 30 minutes
+    t = 1800
+    mute(offender, t)
+  elif tier == 7:
+  # Mute offender for 1 hour
+    t = 3600
+    mute(offender, t)
+  elif tier == 8:
+  # Mute offender for 12 hours
+    t = 43200
+    mute(offender, t)
+  elif tier == 9:
+  # mute offender for 24 hours
+    t = 86400
+    mute(offender, t)
+  elif tier == 10:
+  # Ban offender for 3 days
+    t = 259200
+    ban(offender,t)
+  elif tier == 11:
+  # Ban offender for 5 days
+    t = 432000
+    ban(offender,t)
+  elif tier == 12:
+  # Ban offender for 7 days
+    t = 604800
+    ban(offender,t)
+  elif tier == 13:
+  # Ban offender for 14 days
+    t = 1210000
+    ban(offender,t)
+  elif tier == 14:
+  # Ban offender for 30 days
+    t = 2592000
+    ban(offender,t)
+  elif tier == 15:
+  # Permaban
+    ban(offender,"forever")
+
 # endregion
 
 # region: events
@@ -115,9 +210,8 @@ async def on_message(message):
   for word in wordgraylist:
     if word in message.content:
       await message.delete()
-  mention = f'<@!{bot.user.id}>'
   # not working yet, will ping all online mods
-  if mention in message.content:
+  if bot.user.mentioned_in(message):
     users = []
     role = discord.utils.get(message.guild.roles,name="Helper")
     for user in message.guild.members:
