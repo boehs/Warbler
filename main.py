@@ -108,9 +108,9 @@ async def rempoint():
   print("Completed auto point removal")
   await cleanup()
 
-async def punish(offender, tier, reason):
+async def punish(ctx,offender):
 
-  def mute(offender, time):
+  async def mute(offender, time):
     with connection:
       with connection.cursor() as cursor:
           sql = "UPDATE punish SET punishLength = %s, punishType = 'm' WHERE userId = %s"
@@ -118,75 +118,95 @@ async def punish(offender, tier, reason):
           cursor.execute(sql, var)
 
       connection.commit()
-  def warn(offender,final):
+      role = discord.utils.get(ctx.guild.roles, name='Muted')
+      await offender.add_roles(role)
+      await offender.send("You have been muted for **" + str(time) + " seconds**. Please stay safe! \n- the Warbler team")
+
+  async def warn(offender,final):
     # f = final warning
     if final == True:
-      pass
+      await offender.send("You have been warned! this is your final shot, so please be careful! \n- the Warbler team")
     else:
-      pass
-  def ban(offender, time):
+      await offender.send("You have been warned! you only have one more shot before we start giving real punishments, so please be careful! \n- the Warbler team")
+  async def ban(offender, time):
     if time == "forever":
-      pass
+      with connection:
+        with connection.cursor() as cursor:
+            sql = "UPDATE punish SET punishType = 'p' WHERE userId = %s"
+            var = (offender.id)
+            cursor.execute(sql, var)
+
+        connection.commit()
+        await offender.send("You have been permabanned. we are sorry it had to come to this. \n- the Warbler team")
+        await ctx.guild.ban(offender,delete_message_days=1)
     else:
-      pass
+      with connection:
+        with connection.cursor() as cursor:
+            sql = "UPDATE punish SET punishLength = %s, punishType = 'b' WHERE userId = %s"
+            var = (time,offender.id)
+            cursor.execute(sql, var)
+
+        connection.commit()
+        await offender.send("You have been banned for. **" + str(time) + " seconds**. we are sorry it had to come to this. \n- the Warbler team")
+        await ctx.guild.ban(offender,delete_message_days=1)
         
-  tier = getusertier(offender) + tier
+  tier = await getusertier(offender)
   if tier == 1:
   # Warn offender
-    warn(offender,False)
+    await warn(offender,False)
   elif tier == 2:
   # Final warn offender
-    warn(offender,True)
+    await warn(offender,True)
   elif tier == 3:
   # Remove member role from offender (read the rules)
     pass
   elif tier == 4:
   # Mute offender for 5 minutes
     t = 300
-    mute(offender, t)
+    await mute(offender, t)
   elif tier == 5:
   # Mute offender for 10 minutes
     t = 600
-    mute(offender, t)
+    await mute(offender, t)
   elif tier == 6:
   # Mute offender for 30 minutes
     t = 1800
-    mute(offender, t)
+    await mute(offender, t)
   elif tier == 7:
   # Mute offender for 1 hour
     t = 3600
-    mute(offender, t)
+    await mute(offender, t)
   elif tier == 8:
   # Mute offender for 12 hours
     t = 43200
-    mute(offender, t)
+    await mute(offender, t)
   elif tier == 9:
   # mute offender for 24 hours
     t = 86400
-    mute(offender, t)
+    await mute(offender, t)
   elif tier == 10:
   # Ban offender for 3 days
     t = 259200
-    ban(offender,t)
+    await ban(offender,t)
   elif tier == 11:
   # Ban offender for 5 days
     t = 432000
-    ban(offender,t)
+    await ban(offender,t)
   elif tier == 12:
   # Ban offender for 7 days
     t = 604800
-    ban(offender,t)
+    await ban(offender,t)
   elif tier == 13:
   # Ban offender for 14 days
     t = 1210000
-    ban(offender,t)
+    await ban(offender,t)
   elif tier == 14:
   # Ban offender for 30 days
     t = 2592000
-    ban(offender,t)
+    await ban(offender,t)
   elif tier == 15:
   # Permaban
-    ban(offender,"forever")
+    await ban(offender,"forever")
 
 # endregion
 
@@ -290,6 +310,7 @@ async def point(ctx, amount, user: discord.Member):
               cursor.execute(sql, var)
 
           connection.commit()
+      await punish(ctx,user)
       await cleanup()
     elif message.content.startswith("n"):
       await ctx.channel.send("**Aborted**")
