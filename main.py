@@ -55,7 +55,6 @@ CREATE TABLE IF NOT EXISTS punish (
 	punishTime BIGINT UNSIGNED NULL COMMENT 'The time a user received the punishment they are currently serving, may be empty if user has points but their punishment has ended',
 	punishLength INT UNSIGNED NULL COMMENT 'The length of a punishment a user is serving, may be empty if user has points but their punishment has ended',
 	punishType TINYTEXT NULL COMMENT 'm, or b = mute or ban so that when it comes time to revoke a punishment the bot knows what to remove, may be empty if user has points but their punishment has ended',
-
   PRIMARY KEY (userId)
 );
 """
@@ -71,8 +70,7 @@ with connection:
 # endregion
 
 # region: defs
-# cleans users that have 0 points
-
+# fetches user tiers
 async def getusertier(user):
   with connection:
     with connection.cursor() as cursor:
@@ -85,7 +83,7 @@ async def getusertier(user):
       except:
         success = False
   return result
-  
+# purges uses with 0 points
 async def cleanup():
   with connection:
     with connection.cursor() as cursor:
@@ -107,6 +105,26 @@ async def rempoint():
     connection.commit()
   print("Completed auto point removal")
   await cleanup()
+# actually.... ya know.... punish people!?
+@loop(seconds=60)
+async def autoremovepunish():
+	with connection:
+		with connection.cursor() as cursor:
+			sql = "SELECT userId FROM punish WHERE ( punishLength + punishTime ) <= UNIX_TIMESTAMP()"
+		  cursor.execute(sql)
+          users = cursor.fetchall()
+          for u in users:
+          	try:
+          		await ctx.guild.unban(u[0])
+          	except:
+          		 role = discord.utils.get(ctx.guild.roles, name='Muted')
+          		 await u.remove_roles(u[0])
+          	with connection:
+          		with connection.cursor() as cursor:
+          			sql = "UPDATE punish SET punishLength = NULL, punishType = NULL WHERE userId = %s"
+          			
+          			
+			
 
 async def punish(ctx,offender):
 
