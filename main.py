@@ -108,20 +108,20 @@ async def rempoint():
 # actually.... ya know.... punish people!?
 @loop(seconds=60)
 async def autoremovepunish():
-	with connection:
-		with connection.cursor() as cursor:
-			sql = "SELECT userId FROM punish WHERE ( punishLength + punishTime ) <= UNIX_TIMESTAMP()"
-		  cursor.execute(sql)
-          users = cursor.fetchall()
-          for u in users:
-          	try:
-          		await ctx.guild.unban(u[0])
-          	except:
-          		 role = discord.utils.get(ctx.guild.roles, name='Muted')
-          		 await u.remove_roles(u[0])
-          	with connection:
-          		with connection.cursor() as cursor:
-          			sql = "UPDATE punish SET punishLength = NULL, punishType = NULL WHERE userId = %s"
+  with connection:
+    with connection.cursor() as cursor:
+      sql = "SELECT userId FROM punish WHERE ( punishLength + punishTime ) <= UNIX_TIMESTAMP()"
+      cursor.execute(sql)
+      users = cursor.fetchall()
+      for u in users:
+        try:
+          await ctx.guild.unban(u[0])
+        except:
+          role = discord.utils.get(ctx.guild.roles, name='Muted')
+          await u.remove_roles(u[0])
+          with connection:
+            with connection.cursor() as cursor:
+              sql = "UPDATE punish SET punishLength = NULL, punishType = NULL WHERE userId = %s"
           			
           			
 			
