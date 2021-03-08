@@ -105,7 +105,7 @@ async def rempoint():
     connection.commit()
   print("Completed auto point removal")
   await cleanup()
-# actually.... ya know.... punish people!?
+# take candy from the children
 @loop(seconds=60)
 async def autoremovepunish():
   with connection:
@@ -114,18 +114,22 @@ async def autoremovepunish():
       cursor.execute(sql)
       users = cursor.fetchall()
       for u in users:
+        guild = bot.get_guild(guild_ids[0])
+        u = bot.get_user(u[0])
         try:
-          await ctx.guild.unban(u[0])
+          await guild.unban(u[0])
         except:
-          role = discord.utils.get(ctx.guild.roles, name='Muted')
-          await u.remove_roles(u[0])
-          with connection:
-            with connection.cursor() as cursor:
-              sql = "UPDATE punish SET punishLength = NULL, punishType = NULL WHERE userId = %s"
+          try:
+	          role = discord.utils.get(ctx.guild.roles, name='Muted')
+	          await u.remove_roles(u[0])
+	       with connection:
+	         with connection.cursor() as cursor:
+	      	   sql = "UPDATE punish SET punishLength = NULL, punishType = NULL WHERE userId = %s"
+	           cursor.execute(sql)
+	        connection.commit()
+	      u.send("cool mate. your punishment is over. welcome back and be good! next time your going to the dungeon :O")
           			
-          			
-			
-
+# handout punishments like candy
 async def punish(ctx,offender):
 
   async def mute(offender, time):
@@ -159,7 +163,7 @@ async def punish(ctx,offender):
         await ctx.guild.ban(offender,delete_message_days=1)
     else:
       with connection:
-        with connection.cursor() as cursor:
+            with connection.cursor() as cursor:
             sql = "UPDATE punish SET punishLength = %s, punishType = 'b' WHERE userId = %s"
             var = (time,offender.id)
             cursor.execute(sql, var)
@@ -235,7 +239,7 @@ async def on_ready():
   print(f'> Logged in as: {bot.user}')
   print(bot.user.id)
   print('-----READY----- \n')
-  await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="The chat! do /help to learn more about my functions"))
+  await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="The chat! do /help to learn more!"))
 
 @bot.event
 async def on_message(message):
