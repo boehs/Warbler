@@ -1,16 +1,21 @@
 # region: setup
 import asyncio
 import codecs
+import datetime as dt
+from operator import truediv
 import os
 import random
 import time
 
 import discord
+import humanize
 import pymysql.cursors
 from discord.ext import commands
 from discord.ext.commands import *
 from discord.ext.tasks import *
 from discord_slash import *
+from discord_slash.utils.manage_commands import create_option, create_choice
+from discord_slash.model import SlashCommandOptionType
 from dotenv import load_dotenv
 
 import config
@@ -49,14 +54,19 @@ else:
 
 
 createtable = """
-CREATE TABLE IF NOT EXISTS punish (
-	userId BIGINT UNSIGNED NOT NULL COMMENT 'The snowflake id of a punished user',
-	punishTier TINYINT UNSIGNED NOT NULL COMMENT 'The tier a given user is on (does not necessarily represent if the user is currently serving a punishment, as it may decrease (every two weeks!) before a users punishment is over), serves as a baseline for future punishments)',
-	punishTime BIGINT UNSIGNED NULL COMMENT 'The time a user received the punishment they are currently serving, may be empty if user has points but their punishment has ended',
-	punishLength INT UNSIGNED NULL COMMENT 'The length of a punishment a user is serving, may be empty if user has points but their punishment has ended',
-	punishType TINYTEXT NULL COMMENT 'm, or b = mute or ban so that when it comes time to revoke a punishment the bot knows what to remove, may be empty if user has points but their punishment has ended',
-  PRIMARY KEY (userId)
-);
+-- warbler.punish definition
+
+CREATE TABLE IF NOT EXISTS `punish` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `userId` bigint(20) unsigned NOT NULL COMMENT 'The snowflake id of a punished user',
+  `guildId` bigint(20) unsigned NOT NULL,
+  `punishTier` tinyint(2) unsigned NOT NULL COMMENT 'The tier a given user is on (does not necessarily represent if the user is currently serving a punishment, as it may decrease (every two weeks!) before a users punishment is over), serves as a baseline for future punishments)',
+  `punishTime` bigint(20) unsigned DEFAULT NULL COMMENT 'The time a user received the punishment they are currently serving, may be empty if user has points but their punishment has ended',
+  `punishLength` int(10) unsigned DEFAULT NULL COMMENT 'The length of a punishment a user is serving, may be empty if user has points but their punishment has ended',
+  `punishType` tinytext DEFAULT NULL COMMENT 'm, or b = mute or ban so that when it comes time to revoke a punishment the bot knows what to remove, may be empty if user has points but their punishment has ended',
+  `updateTime` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8mb4;
 """
 
 with connection:
@@ -71,12 +81,12 @@ with connection:
 
 # region: defs
 # fetches user tiers
-async def getusertier(user):
+async def getusertier(ctx,user):
   with connection:
     with connection.cursor() as cursor:
       try:
-        sql = "SELECT punishTier FROM punish WHERE userId = %s"
-        cursor.execute(sql, user.id)
+        sql = "SELECT punishTier FROM punish WHERE userId = %s AND guildId = %s"
+        cursor.execute(sql, (user.id,ctx.guild.id))
         result = cursor.fetchone()
         result = result['punishTier']
         success = True
@@ -108,26 +118,32 @@ async def rempoint():
 # take candy from the children
 @loop(seconds=60)
 async def autoremovepunish():
+  await bot.wait_until_ready()
   with connection:
     with connection.cursor() as cursor:
-      sql = "SELECT userId FROM punish WHERE ( punishLength + punishTime ) <= UNIX_TIMESTAMP()"
+      sql = "SELECT userId, guildId, punishType FROM punish WHERE ( punishLength + punishTime ) <= UNIX_TIMESTAMP()"
       cursor.execute(sql)
       users = cursor.fetchall()
       for u in users:
-        guild = bot.get_guild(guild_ids[0])
-        u = bot.get_user(u[0])
+        print(str(u))
+        guild = bot.get_guild(u['guildId'])
+        user = bot.get_user(u['userId'])
+        member = guild.get_member(u['userId'])
         try:
-          await guild.unban(u[0])
+          await guild.unban(user)
         except:
           try:
-	          role = discord.utils.get(ctx.guild.roles, name='Muted')
-	          await u.remove_roles(u[0])
-	       with connection:
-	         with connection.cursor() as cursor:
-	      	   sql = "UPDATE punish SET punishLength = NULL, punishType = NULL WHERE userId = %s"
-	           cursor.execute(sql)
-	        connection.commit()
-	      u.send("cool mate. your punishment is over. welcome back and be good! next time your going to the dungeon :O")
+            role = discord.utils.get(guild.roles, name='Muted')
+            await member.remove_roles(role)
+          except:
+            print("oop neither worked! username is " + user.name)
+        with connection:
+          with connection.cursor() as cursor:
+            sql = "UPDATE punish SET punishLength = NULL, punishType = NULL WHERE userId = %s AND guildId = %s"
+            cursor.execute(sql, (u['userId'],u['guildId']))
+        connection.commit()
+        await user.send("cool mate. your punishment is over. welcome back and be good! next time your going to the dungeon :O")
+  print("Completed auto punish removal")
           			
 # handout punishments like candy
 async def punish(ctx,offender):
@@ -135,14 +151,14 @@ async def punish(ctx,offender):
   async def mute(offender, time):
     with connection:
       with connection.cursor() as cursor:
-          sql = "UPDATE punish SET punishLength = %s, punishType = 'm' WHERE userId = %s"
-          var = (time, offender.id)
+          sql = "UPDATE punish SET punishLength = %s, punishType = 'm' WHERE userId = %s AND guildId = %s"
+          var = (time, offender.id, ctx.guild.id)
           cursor.execute(sql, var)
 
       connection.commit()
       role = discord.utils.get(ctx.guild.roles, name='Muted')
       await offender.add_roles(role)
-      await offender.send("You have been muted for **" + str(time) + " seconds**. Please stay safe! \n- the Warbler team")
+      await offender.send("You have been muted for **" + humanize.naturaldelta(dt.timedelta(seconds=time)) + " **. Please stay safe! \n- the Warbler team")
 
   async def warn(offender,final):
     # f = final warning
@@ -154,8 +170,8 @@ async def punish(ctx,offender):
     if time == "forever":
       with connection:
         with connection.cursor() as cursor:
-            sql = "UPDATE punish SET punishType = 'p' WHERE userId = %s"
-            var = (offender.id)
+            sql = "UPDATE punish SET punishType = 'p' WHERE userId = %s AND guildId = %s"
+            var = (offender.id, ctx.guild.id)
             cursor.execute(sql, var)
 
         connection.commit()
@@ -163,16 +179,16 @@ async def punish(ctx,offender):
         await ctx.guild.ban(offender,delete_message_days=1)
     else:
       with connection:
-            with connection.cursor() as cursor:
-            sql = "UPDATE punish SET punishLength = %s, punishType = 'b' WHERE userId = %s"
-            var = (time,offender.id)
-            cursor.execute(sql, var)
+        with connection.cursor() as cursor:
+          sql = "UPDATE punish SET punishLength = %s, punishType = 'b' WHERE userId = %s AND guildId = %s"
+          var = (time,offender.id,ctx.guild.id)
+          cursor.execute(sql, var)
 
         connection.commit()
-        await offender.send("You have been banned for. **" + str(time) + " seconds**. we are sorry it had to come to this. \n- the Warbler team")
+        await offender.send("You have been banned for. **" + humanize.naturaldelta(dt.timedelta(seconds=time)) + " **. we are sorry it had to come to this. \n- the Warbler team")
         await ctx.guild.ban(offender,delete_message_days=1)
         
-  tier = await getusertier(offender)
+  tier = await getusertier(ctx,offender)
   if tier == 1:
   # Warn offender
     await warn(offender,False)
@@ -246,11 +262,13 @@ async def on_message(message):
   if message.author == bot.user:
     return
   for word in wordblacklist:
-    if word in message.content:
+    word = word.lower()
+    if word in message.content.lower():
       await message.delete()
       # give user a point
   for word in wordgraylist:
-    if word in message.content:
+    word = word.lower()
+    if word in message.content.lower():
       await message.delete()
   # not working yet, will ping all online mods
   if bot.user.mentioned_in(message):
@@ -270,35 +288,54 @@ async def on_message(message):
 # region: slashes
 @slash.slash(name="checkpoints",guild_ids=config.guild_ids,description="check the points of any user ever!")
 async def checkpoints(ctx, user: discord.Member):
-  await ctx.channel.send("**Hey! 👋** Give me a sec while I look that up for you!")
-  async with ctx.channel.typing():
-    await asyncio.sleep(1)
   with connection:
     with connection.cursor() as cursor:
         try:
-          sql = "SELECT punishTier FROM punish WHERE userId = %s"
-          cursor.execute(sql, user.id)
+          sql = "SELECT punishTier FROM punish WHERE userId = %s AND guildId = %s"
+          cursor.execute(sql, (user.id, ctx.guild.id))
           result = cursor.fetchone()
 
           result = result['punishTier']
-          await ctx.channel.send("**Ok!** we found the user! at time of checking, they have **" + str(result) + "** points")
+          await ctx.send("**Ok!** we found the user! at time of checking, they have **" + str(result) + "** points")
         except TypeError:
-          await ctx.channel.send("**Awesome**, " + user.mention + " Currently has **no points**. thanks for being a great person!")
+          await ctx.send("**Awesome**, " + user.mention + " Currently has **no points**. thanks for being a great person!", hidden=True)
+  await ctx.respond(eat=True)
 
 @slash.slash(name="help",guild_ids=config.guild_ids,description="you should know this already - but maybe you just want bird facts")
 async def help(ctx):
-  await ctx.channel.send("**Hey! 👋** \nmy job is mostly to help keep the chat clean, and give our wonderful helpers a hand, but there is some useful stuff you should know!\n**Ping Me** if something needs immediate (like right right right now) attention\n**DM me** to contact the mods if something needs private attention\n\n**Oh!** One last thing. here is a random bird fact!\n> " + random.choice(birdfacts))
+  await ctx.send("**Hey! 👋** \nmy job is mostly to help keep the chat clean, and give our wonderful helpers a hand, but there is some useful stuff you should know!\n**Ping Me** if something needs immediate (like right right right now) attention\n**DM me** to contact the mods if something needs private attention\n\n**Oh!** One last thing. here is a random bird fact!\n> " + random.choice(birdfacts), hidden=True)
+  await ctx.respond(eat=True)
 
-@slash.slash(name="point",guild_ids=config.guild_ids, description="Gives users points for being bad children")
+
+r=0 # fix a bug with discord api
+@slash.slash(name="point",
+description="Gives users points for being bad children",
+guild_ids=config.guild_ids,
+options=[
+    create_option(
+        name="amount",
+        description="How many points to grant",
+        option_type=4,
+        required=True
+    ),
+    create_option(
+        name="user",
+        description="Ping the user to punish",
+        option_type=6,
+        required=True
+    ),    
+])
 @commands.has_role("Helper")
 async def point(ctx, amount, user: discord.Member):
+  await ctx.respond()
+  global r
   author = ctx.author
   success = False
   with connection:
     with connection.cursor() as cursor:
         try:
-            sql = "SELECT punishTier FROM punish WHERE userId = %s"
-            cursor.execute(sql, user.id)
+            sql = "SELECT punishTier FROM punish WHERE userId = %s AND guildId = %s"
+            cursor.execute(sql, (user.id, ctx.guild.id))
             result = cursor.fetchone()
             result = result['punishTier']
         except TypeError:
@@ -306,10 +343,11 @@ async def point(ctx, amount, user: discord.Member):
         else:
             success = True
             mathishard = int(result) + int(amount)
-            await ctx.channel.send("We already have the user. they have **" + str(result) + "** points. after this, they will have **" + str(mathishard) + "** points. **are you sure?** (**y** or **n**)")
+            if r == 0:
+              await ctx.channel.send("We already have the user. they have **" + str(result) + "** points. after this, they will have **" + str(mathishard) + "** points. **are you sure?** (**y** or **n**)")
+              r = r + 1
   if not success:
     await ctx.channel.send("This will give the user **" + str(amount) + "** points. **are you sure?** (**y** or **n**)")
-
   def check(message):
       return message.author == author and message.content.startswith("y") or message.content.startswith("n")
   try:
@@ -319,16 +357,16 @@ async def point(ctx, amount, user: discord.Member):
       if success:
         with connection:
           with connection.cursor() as cursor:
-              sql = "UPDATE punish SET punishTier = %s, punishTime = %s WHERE userId = %s"
-              var = (int(mathishard), int(time.time()), int(user.id))
+              sql = "UPDATE punish SET punishTier = %s, punishTime = %s WHERE userId = %s AND guildId = %s"
+              var = (int(mathishard), int(time.time()), int(user.id), int(ctx.guild.id))
               cursor.execute(sql, var)
 
           connection.commit()
       elif not success:
         with connection:
           with connection.cursor() as cursor:
-              sql = "INSERT INTO punish ( userId, punishTier, punishTime ) VALUES ( %s, %s, %s )"
-              var = (int(user.id), int(amount), int(time.time()))
+              sql = "INSERT INTO punish ( userId, punishTier, punishTime, guildId ) VALUES ( %s, %s, %s, %s )"
+              var = (int(user.id), int(amount), int(time.time()), ctx.guild.id)
               cursor.execute(sql, var)
 
           connection.commit()
@@ -338,8 +376,9 @@ async def point(ctx, amount, user: discord.Member):
       await ctx.channel.send("**Aborted**")
   except asyncio.TimeoutError:
           return
+  r = 0
 # endregion
-
 rempoint.start()
+autoremovepunish.start()
 print("Beginning login")
 bot.run(DISCORD_TOKEN)
