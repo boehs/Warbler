@@ -146,8 +146,9 @@ async def autoremovepunish():
   print("Completed auto punish removal")
           			
 # handout punishments like candy
-async def punish(ctx,offender):
-
+async def punish(ctx,offender,reason):
+  if reason = None:
+    reason = None
   async def mute(offender, time):
     with connection:
       with connection.cursor() as cursor:
@@ -323,10 +324,16 @@ options=[
         description="Ping the user to punish",
         option_type=6,
         required=True
-    ),    
+    ),
+    create_option(
+        name="reason",
+        description="Why is the user being punished?",
+        option_type=3,
+        required=False
+    ),   
 ])
 @commands.has_role("Helper")
-async def point(ctx, amount, user: discord.Member):
+async def point(ctx, amount, user: discord.Member, reason):
   await ctx.respond()
   global r
   author = ctx.author
@@ -370,7 +377,7 @@ async def point(ctx, amount, user: discord.Member):
               cursor.execute(sql, var)
 
           connection.commit()
-      await punish(ctx,user)
+      await punish(ctx,user,reason)
       await cleanup()
     elif message.content.startswith("n"):
       await ctx.channel.send("**Aborted**")
