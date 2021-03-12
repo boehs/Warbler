@@ -8,6 +8,7 @@ import random
 import time
 
 import discord
+from discord.enums import FriendFlags
 import humanize
 import pymysql.cursors
 from discord.ext import commands
@@ -147,8 +148,8 @@ async def autoremovepunish():
           			
 # handout punishments like candy
 async def punish(ctx,offender,reason):
-  if reason = None:
-    reason = None
+  if reason == None:
+    reason = "None"
   async def mute(offender, time):
     with connection:
       with connection.cursor() as cursor:
@@ -159,14 +160,14 @@ async def punish(ctx,offender,reason):
       connection.commit()
       role = discord.utils.get(ctx.guild.roles, name='Muted')
       await offender.add_roles(role)
-      await offender.send("You have been muted for **" + humanize.naturaldelta(dt.timedelta(seconds=time)) + " **. Please stay safe! \n- the Warbler team")
+      await offender.send("You have been muted for **" + humanize.naturaldelta(dt.timedelta(seconds=time)) + " **. Please stay safe!\n**Reason**: " + reason + "\n- the Warbler team")
 
   async def warn(offender,final):
     # f = final warning
     if final == True:
       await offender.send("You have been warned! this is your final shot, so please be careful! \n- the Warbler team")
     else:
-      await offender.send("You have been warned! you only have one more shot before we start giving real punishments, so please be careful! \n- the Warbler team")
+      await offender.send("You have been warned! you only have one more shot before we start giving real punishments, so please be careful!\n**Reason**: " + reason + "\n- the Warbler team")
   async def ban(offender, time):
     if time == "forever":
       with connection:
@@ -176,8 +177,11 @@ async def punish(ctx,offender,reason):
             cursor.execute(sql, var)
 
         connection.commit()
-        await offender.send("You have been permabanned. we are sorry it had to come to this. \n- the Warbler team")
-        await ctx.guild.ban(offender,delete_message_days=1)
+        await offender.send("You have been permabanned. we are sorry it had to come to this.\n**Reason**: " + reason + "\n- the Warbler team")
+        if reason == "None":
+          await ctx.guild.ban(offender,delete_message_days=1)
+        else:
+          await ctx.guild.ban(offender,delete_message_days=1,reason=reason)
     else:
       with connection:
         with connection.cursor() as cursor:
@@ -187,7 +191,10 @@ async def punish(ctx,offender,reason):
 
         connection.commit()
         await offender.send("You have been banned for. **" + humanize.naturaldelta(dt.timedelta(seconds=time)) + " **. we are sorry it had to come to this. \n- the Warbler team")
-        await ctx.guild.ban(offender,delete_message_days=1)
+        if reason == "None":
+          await ctx.guild.ban(offender,delete_message_days=1)
+        else:
+          await ctx.guild.ban(offender,delete_message_days=1,reason=reason)
         
   tier = await getusertier(ctx,offender)
   if tier == 1:
@@ -297,7 +304,7 @@ async def checkpoints(ctx, user: discord.Member):
           result = cursor.fetchone()
 
           result = result['punishTier']
-          await ctx.send("**Ok!** we found the user! at time of checking, they have **" + str(result) + "** points")
+          await ctx.send("**Ok!** we found the user! at time of checking, they have **" + str(result) + "** points", hidden=True)
         except TypeError:
           await ctx.send("**Awesome**, " + user.mention + " Currently has **no points**. thanks for being a great person!", hidden=True)
   await ctx.respond(eat=True)
@@ -306,7 +313,6 @@ async def checkpoints(ctx, user: discord.Member):
 async def help(ctx):
   await ctx.send("**Hey! 👋** \nmy job is mostly to help keep the chat clean, and give our wonderful helpers a hand, but there is some useful stuff you should know!\n**Ping Me** if something needs immediate (like right right right now) attention\n**DM me** to contact the mods if something needs private attention\n\n**Oh!** One last thing. here is a random bird fact!\n> " + random.choice(birdfacts), hidden=True)
   await ctx.respond(eat=True)
-
 
 r=0 # fix a bug with discord api
 @slash.slash(name="point",
@@ -333,7 +339,7 @@ options=[
     ),   
 ])
 @commands.has_role("Helper")
-async def point(ctx, amount, user: discord.Member, reason):
+async def point(ctx, amount, user: discord.Member, reason = None):
   await ctx.respond()
   global r
   author = ctx.author
