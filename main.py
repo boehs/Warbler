@@ -118,7 +118,7 @@ async def rempoint():
   await cleanup()
 # take candy from the children
 @loop(seconds=60)
-async def autoremovepunish():
+async def autoremovepunish(): 
   await bot.wait_until_ready()
   with connection:
     with connection.cursor() as cursor:
