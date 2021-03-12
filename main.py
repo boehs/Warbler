@@ -2,13 +2,11 @@
 import asyncio
 import codecs
 import datetime as dt
-from operator import truediv
 import os
 import random
 import time
 
 import discord
-from discord.enums import FriendFlags
 import humanize
 import pymysql.cursors
 from discord.ext import commands
