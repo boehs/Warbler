@@ -7,6 +7,7 @@ import random
 import time
 
 import discord
+from discord import message
 import humanize
 import pymysql.cursors
 from discord.ext import commands
@@ -268,15 +269,18 @@ async def on_message(message):
   if message.author == bot.user:
     return
   for word in wordblacklist:
-    word = word.lower()
-    if word in message.content.lower():
+    msg = message.content.lower()
+    msg = msg.replace(" ", "")
+    msg = msg.replace("\n", "")   
+    if word in msg:
       await message.delete()
       # give user a point
   for word in wordgraylist:
-    word = word.lower()
-    if word in message.content.lower():
+    msg = message.content.lower()
+    msg = msg.replace(" ", "")
+    msg = msg.replace("\n", "")    
+    if word in msg:
       await message.delete()
-  # not working yet, will ping all online mods
   if bot.user.mentioned_in(message):
     users = []
     role = discord.utils.get(message.guild.roles,name="Helper")
@@ -289,6 +293,21 @@ async def on_message(message):
     await message.channel.send("⚠️ " + message.author.mention + " Mentioned me! (Pinging all online mods... this should be good 👀) \n" + "".join(f"<@!{user}>, " for user in users))
   await bot.process_commands(message)
 
+@bot.event
+async def on_message_edit(before,after):
+  for word in wordblacklist:
+    msg = after.content.lower()
+    msg = msg.replace(" ", "")
+    msg = msg.replace("\n", "")
+    if word in msg:
+      await after.delete()
+      # give user a point
+  for word in wordgraylist:
+    msg = after.content.lower()
+    msg = msg.replace(" ", "")
+    msg = msg.replace("\n", "")
+    if word in msg:
+      await after.delete()
 # endregion
 
 # region: slashes
@@ -360,7 +379,7 @@ async def point(ctx, amount, user: discord.Member, reason = None):
   if not success:
     await ctx.channel.send("This will give the user **" + str(amount) + "** points. **are you sure?** (**y** or **n**)")
   def check(message):
-      return message.author == author and message.content.startswith("y") or message.content.startswith("n")
+      return message.author == author and (message.content.startswith("y") or message.content.startswith("n"))
   try:
     message = await bot.wait_for('message', timeout=60.0, check=check)
     if message.content.startswith("y"):
