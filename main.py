@@ -5,7 +5,7 @@ import datetime as dt
 import os
 import random
 import time
-
+import re
 import discord
 from discord import message
 import humanize
@@ -43,6 +43,9 @@ wordgraylist = wordgraylist.readlines()
 wordgraylist = [x.replace('\n', '') for x in wordgraylist]
 wordgraylist = [codecs.encode(x, 'rot_13') for x in wordgraylist]
 print("Loaded " + str(len(wordgraylist)) + " words from the graylist")
+
+workarounds = re.compile('|'.join(map(re.escape, ["\n"," ",".",'"',"'",",","@","*","!","$","?"])))
+workarounds = re.compile('[^a-zA-Z]')
 
 bot.remove_command("help")
 try:
@@ -269,17 +272,11 @@ async def on_message(message):
   if message.author == bot.user:
     return
   for word in wordblacklist:
-    msg = message.content.lower()
-    msg = msg.replace(" ", "")
-    msg = msg.replace("\n", "")   
-    if word in msg:
+    if word in workarounds.sub("", message.content.lower()):
       await message.delete()
       # give user a point
-  for word in wordgraylist:
-    msg = message.content.lower()
-    msg = msg.replace(" ", "")
-    msg = msg.replace("\n", "")    
-    if word in msg:
+  for word in wordgraylist: 
+    if word in workarounds.sub("", message.content.lower()):
       await message.delete()
   if bot.user.mentioned_in(message):
     users = []
@@ -296,17 +293,11 @@ async def on_message(message):
 @bot.event
 async def on_message_edit(before,after):
   for word in wordblacklist:
-    msg = after.content.lower()
-    msg = msg.replace(" ", "")
-    msg = msg.replace("\n", "")
-    if word in msg:
+    if word in workarounds.sub("", after.content.lower()):
       await after.delete()
       # give user a point
   for word in wordgraylist:
-    msg = after.content.lower()
-    msg = msg.replace(" ", "")
-    msg = msg.replace("\n", "")
-    if word in msg:
+    if word in workarounds.sub("", after.content.lower()):
       await after.delete()
 # endregion
 
