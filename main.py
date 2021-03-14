@@ -132,14 +132,11 @@ async def autoremovepunish():
         guild = bot.get_guild(u['guildId'])
         user = bot.get_user(u['userId'])
         member = guild.get_member(u['userId'])
-        try:
-          await guild.unban(user)
-        except:
-          try:
-            role = discord.utils.get(guild.roles, name='Muted')
-            await member.remove_roles(role)
-          except:
-            print("oop neither worked! username is " + user.name)
+        if u['punishType'] == ('b','p'):
+            await guild.unban(user)
+        elif u['punishType'] == 'm':
+          role = discord.utils.get(guild.roles, name='Muted')
+          await member.remove_roles(role)
         with connection:
           with connection.cursor() as cursor:
             sql = "UPDATE punish SET punishLength = NULL, punishType = NULL WHERE userId = %s AND guildId = %s"
