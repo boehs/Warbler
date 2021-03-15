@@ -87,14 +87,10 @@ with connection:
 async def getusertier(ctx,user):
   with connection:
     with connection.cursor() as cursor:
-      try:
-        sql = "SELECT punishTier FROM punish WHERE userId = %s AND guildId = %s"
-        cursor.execute(sql, (user.id,ctx.guild.id))
-        result = cursor.fetchone()
-        result = result['punishTier']
-        success = True
-      except:
-        success = False
+      sql = "SELECT punishTier FROM punish WHERE userId = %s AND guildId = %s"
+      cursor.execute(sql, (user.id,ctx.guild.id))
+      result = cursor.fetchone()
+      result = result['punishTier']
   return result
 # purges uses with 0 points
 async def cleanup():
@@ -194,65 +190,46 @@ async def punish(ctx,offender,reason):
           await ctx.guild.ban(offender,delete_message_days=1)
         else:
           await ctx.guild.ban(offender,delete_message_days=1,reason=reason)
-        
-  tier = await getusertier(ctx,offender)
-  if tier == 1:
-  # Warn offender
-    await warn(offender,False)
-  elif tier == 2:
-  # Final warn offender
-    await warn(offender,True)
-  elif tier == 3:
-  # Remove member role from offender (read the rules)
-    pass
-  elif tier == 4:
-  # Mute offender for 5 minutes
-    t = 300
-    await mute(offender, t)
-  elif tier == 5:
-  # Mute offender for 10 minutes
-    t = 600
-    await mute(offender, t)
-  elif tier == 6:
-  # Mute offender for 30 minutes
-    t = 1800
-    await mute(offender, t)
-  elif tier == 7:
-  # Mute offender for 1 hour
-    t = 3600
-    await mute(offender, t)
-  elif tier == 8:
-  # Mute offender for 12 hours
-    t = 43200
-    await mute(offender, t)
-  elif tier == 9:
-  # mute offender for 24 hours
-    t = 86400
-    await mute(offender, t)
-  elif tier == 10:
-  # Ban offender for 3 days
-    t = 259200
-    await ban(offender,t)
-  elif tier == 11:
-  # Ban offender for 5 days
-    t = 432000
-    await ban(offender,t)
-  elif tier == 12:
-  # Ban offender for 7 days
-    t = 604800
-    await ban(offender,t)
-  elif tier == 13:
-  # Ban offender for 14 days
-    t = 1210000
-    await ban(offender,t)
-  elif tier == 14:
-  # Ban offender for 30 days
-    t = 2592000
-    await ban(offender,t)
-  elif tier == 15:
-  # Permaban
-    await ban(offender,"forever")
-
+  # [["r"="purge user of all punishments","w"=Warn (0=warning,1=finalwarning),"m"=mute,"b"=ban(0=forever)],[n=punishtime(seconds)]]
+  punishtypes = [["r",0],
+                  ["w",0],
+                  ["w",1],
+                  ["k"],
+                  ["m",300],
+                  ["m",600],
+                  ["m",1800],
+                  ["m",3600],
+                  ["m",43200],
+                  ["m",86400],
+                  ["b",259200,],
+                  ["b",432000],
+                  ["b",604800],
+                  ["b",1210000],
+                  ["b",2592000],
+                  ["b",0]]
+  n = await getusertier(ctx,offender)
+  if punishtypes[n][0] == 'r':
+      print("Removing all punishments, " + str(punishtypes[n][1]))
+  elif punishtypes[n][0] == 'w':
+      if punishtypes[n][1] == 0:
+          await warn(offender,False)
+      elif punishtypes[n][1] == 1:
+          await warn(offender,True)
+  elif punishtypes[n][0] == 'k':
+      if punishtypes[n][1] == 0:
+          print("Kick")
+  elif punishtypes[n][0] == 'm':
+      if punishtypes[n][1] == 0:
+          print("Mute (forever)")
+      else:
+          await mute(offender, punishtypes[n][1])
+  elif punishtypes[n][0] == 'sb':
+      print("Soft Ban, " + str(punishtypes[n][1]))
+  elif punishtypes[n][0] == 'b':
+      if punishtypes[n][1] == 0:
+          await ban(offender,punishtypes[n][1])
+      else:
+          await ban(offender,"forever")
 # endregion
 
 # region: events
