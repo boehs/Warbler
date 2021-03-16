@@ -1,4 +1,5 @@
 # region: setup
+# pylint: disable=unused-wildcard-import
 import asyncio
 import codecs
 import datetime as dt
@@ -55,34 +56,21 @@ except pymysql.err.InternalError:
 else:
   print("Connected to SQL")
 
-
-createtable = """
--- warbler.punish definition
-
-CREATE TABLE IF NOT EXISTS `punish` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `userId` bigint(20) unsigned NOT NULL COMMENT 'The snowflake id of a punished user',
-  `guildId` bigint(20) unsigned NOT NULL,
-  `punishTier` tinyint(2) unsigned NOT NULL COMMENT 'The tier a given user is on (does not necessarily represent if the user is currently serving a punishment, as it may decrease (every two weeks!) before a users punishment is over), serves as a baseline for future punishments)',
-  `punishTime` bigint(20) unsigned DEFAULT NULL COMMENT 'The time a user received the punishment they are currently serving, may be empty if user has points but their punishment has ended',
-  `punishLength` int(10) unsigned DEFAULT NULL COMMENT 'The length of a punishment a user is serving, may be empty if user has points but their punishment has ended',
-  `punishType` tinytext DEFAULT NULL COMMENT 'm, or b = mute or ban so that when it comes time to revoke a punishment the bot knows what to remove, may be empty if user has points but their punishment has ended',
-  `updateTime` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8mb4;
-"""
-
-with connection:
-    with connection.cursor() as cursor:
-        cursor.execute(createtable)
-
-    # connection is not autocommit by default. So you must commit to save
-    # your changes.
-    connection.commit()
-
 # endregion
 
 # region: defs
+
+# fetches and returns the config of a spesific guild for parsing
+async def getguildconfig(guild,returnchoice = None):
+  with connection:
+    with connection.cursor() as cursor:
+      sql = "SELECT * FROM guilds WHERE guildId = %s"
+      cursor.execute(sql,guild.id)
+      result = cursor.fetchone()
+    
+  if returnchoice == None:
+    return result
+
 # fetches user tiers
 async def getusertier(ctx,user):
   with connection:

@@ -1,5 +1,9 @@
+
 tasks:
   - init: python runthisfirst.py
     command: python main.py
 image:
   file: .gitpod.dockerfile
+vscode:
+  extensions:
+    - ms-python.python
