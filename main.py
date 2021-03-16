@@ -366,7 +366,7 @@ async def point(ctx, amount, user: discord.Member, reason = None):
 
           connection.commit()
       await punish(ctx,user,reason)
-      await cleanup()
+      await cleanup() 
     elif message.content.startswith("n"):
       await ctx.channel.send("**Aborted**")
   except asyncio.TimeoutError:
