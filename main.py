@@ -318,8 +318,9 @@ async def point(ctx, amount, user: discord.Member, reason = None):
   success = False
   callresult = await getguildconfig(ctx.guild)
   try:
-    if callresult['maxPointGrant'] < amount:
-      amount = callresult['maxPointGrant']
+    if not callresult['maxPointGrant'] == 0:
+      if callresult['maxPointGrant'] < amount:
+        amount = callresult['maxPointGrant']
   except TypeError:
     pass
   with connection:
