@@ -50,7 +50,7 @@ workarounds = re.compile('[^a-zA-Z]')
 
 bot.remove_command("help")
 try:
-  connection = pymysql.connect(host='localhost',user='root',password='',database='warbler',cursorclass=pymysql.cursors.DictCursor)
+  connection = pymysql.connect(host='localhost',user='root',password='root',database='warbler',cursorclass=pymysql.cursors.DictCursor)
 except pymysql.err.InternalError:
   print("Error: You must have a my sql instence running and a database called 'warbler'")
 else:
@@ -64,9 +64,11 @@ else:
 async def getguildconfig(guild,returnchoice = None):
   with connection:
     with connection.cursor() as cursor:
+      print("Got call")
       sql = "SELECT * FROM guilds WHERE guildId = %s"
       cursor.execute(sql,guild.id)
       result = cursor.fetchone()
+      print(result)
     
   if returnchoice == None:
     return result
@@ -314,6 +316,12 @@ async def point(ctx, amount, user: discord.Member, reason = None):
   global r
   author = ctx.author
   success = False
+  callresult = await getguildconfig(ctx.guild)
+  try:
+    if callresult['maxPointGrant'] < amount:
+      amount = callresult['maxPointGrant']
+  except TypeError:
+    pass
   with connection:
     with connection.cursor() as cursor:
         try:
@@ -326,10 +334,15 @@ async def point(ctx, amount, user: discord.Member, reason = None):
         else:
             success = True
             mathishard = int(result) + int(amount)
+            if mathishard < 0:
+              mathishard = 0
+              amount = 0
             if r == 0:
               await ctx.channel.send("We already have the user. they have **" + str(result) + "** points. after this, they will have **" + str(mathishard) + "** points. **are you sure?** (**y** or **n**)")
               r = r + 1
   if not success:
+    if amount < 0:
+      amount = 0
     await ctx.channel.send("This will give the user **" + str(amount) + "** points. **are you sure?** (**y** or **n**)")
   def check(message):
       return message.author == author and (message.content.startswith("y") or message.content.startswith("n"))
