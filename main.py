@@ -244,7 +244,8 @@ async def on_message(message):
       await message.delete()
   if bot.user.mentioned_in(message):
     users = []
-    role = discord.utils.get(message.guild.roles,name="Helper")
+    gconfig = await getguildconfig(message.guild)
+    role = discord.utils.get(message.guild.roles,id=gconfig['modRole'])
     for user in message.guild.members:
         if role in user.roles and str(user.status) == "online":
           if user == bot.user:
@@ -268,6 +269,10 @@ async def on_message_edit(before,after):
 # region: slashes
 @slash.slash(name="checkpoints",guild_ids=config.guild_ids,description="check the points of any user ever!")
 async def checkpoints(ctx, user: discord.Member):
+  gconfig = await getguildconfig(ctx.guild)
+  if gconfig['membersCanViewUserTiers'] == 0 and not discord.utils.get(ctx.guild.roles, id=gconfig['modRole']) in ctx.author.roles:
+    await ctx.respond(eat=True)
+    return
   with connection:
     with connection.cursor() as cursor:
         try:
@@ -310,8 +315,11 @@ options=[
         required=False
     ),   
 ])
-@commands.has_role("Helper")
 async def point(ctx, amount, user: discord.Member, reason = None):
+  modrole = await getguildconfig(ctx.guild)
+  if not discord.utils.get(ctx.guild.roles, id=modrole['modRole']) in ctx.author.roles:
+    await ctx.respond(eat=True)
+    return
   await ctx.respond()
   global r
   author = ctx.author
