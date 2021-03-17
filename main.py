@@ -72,6 +72,80 @@ async def getguildconfig(guild,returnchoice = None):
     
   if returnchoice == None:
     return result
+  
+async def discovererror(ctx,discovery):
+  gconfig = getguildconfig(ctx.guild)
+  result = []
+  for row in discovery:
+    if row == "MuteRole":
+      if gconfig["muteRole"] == None:
+        list.append(0)
+      else:
+        list.append(1)
+    elif row == "CanFindMuteRole":
+      try:
+        role = discord.utils.get(ctx.guild.roles,id=gconfig['muteRole'])
+      except:
+        list.append(0)  
+      else:
+        list.append(1)
+    elif row == "AttemptMute":
+      role = discord.utils.get(ctx.guild.roles,id=gconfig['muteRole'])
+      member = ctx.guild.get_member(bot.user.id)
+      try:
+        await member.add_roles(role)
+      except:
+        list.append(0)  
+      else:
+        list.append(1)
+          
+    if row == "ModRole":
+      if gconfig["modRole"] == None:
+        list.append(0)
+      else:
+        list.append(1)
+    elif row == "CanFindModRole":
+      try:
+        role = discord.utils.get(ctx.guild.roles,id=gconfig['modRole'])
+      except:
+        list.append(0)  
+      else:
+        list.append(1)
+        
+    elif row == "MemberRole":
+      if gconfig["memberRole"] == None:
+        list.append(0)
+      else:
+        list.append(1)
+    elif row == "CanFindMemberRole":
+      try:
+        role = discord.utils.get(ctx.guild.roles,id=gconfig['memberRole'])
+      except:
+        list.append(0)  
+      else:
+        list.append(1)      
+    elif row == "LoggingEnabled":
+      if gconfig["logging"] == 1:
+        list.append(1)
+      else:
+        list.append(0)
+    elif row == "CanFindLoggingChannel":
+      if gconfig["logging"] == None:
+        list.append(0)
+      else:
+        list.append(1)
+    elif row == "LoggingChannelValid":
+    elif row == "CanMsgLoggingChannel":
+
+    elif row == "ModmailEnabled":
+      if gconfig["modmail"] == 1:
+        list.append(1)
+      else:
+        list.append(0)
+    elif row == "CanFindModmailChannel":
+    elif row == "ModmailChannelValid":
+    elif row == "CanMsgModmailChannel":
+      
 
 # fetches user tiers
 async def getusertier(ctx,user):
