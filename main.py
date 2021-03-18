@@ -79,73 +79,90 @@ async def discovererror(ctx,discovery):
   for row in discovery:
     if row == "MuteRole":
       if gconfig["muteRole"] == None:
-        list.append(0)
+        result.append(0)
       else:
-        list.append(1)
+        result.append(1)
     elif row == "CanFindMuteRole":
       try:
         role = discord.utils.get(ctx.guild.roles,id=gconfig['muteRole'])
       except:
-        list.append(0)  
+        result.append(0)  
       else:
-        list.append(1)
+        result.append(1)
     elif row == "AttemptMute":
       role = discord.utils.get(ctx.guild.roles,id=gconfig['muteRole'])
       member = ctx.guild.get_member(bot.user.id)
       try:
         await member.add_roles(role)
       except:
-        list.append(0)  
+        result.append(0)  
       else:
-        list.append(1)
+        result.append(1)
           
     if row == "ModRole":
       if gconfig["modRole"] == None:
-        list.append(0)
+        result.append(0)
       else:
-        list.append(1)
+        result.append(1)
     elif row == "CanFindModRole":
       try:
         role = discord.utils.get(ctx.guild.roles,id=gconfig['modRole'])
       except:
-        list.append(0)  
+        result.append(0)  
       else:
-        list.append(1)
+        result.append(1)
         
     elif row == "MemberRole":
       if gconfig["memberRole"] == None:
-        list.append(0)
+        result.append(0)
       else:
-        list.append(1)
+        result.append(1)
     elif row == "CanFindMemberRole":
       try:
         role = discord.utils.get(ctx.guild.roles,id=gconfig['memberRole'])
       except:
-        list.append(0)  
+        result.append(0)  
       else:
-        list.append(1)      
+        result.append(1)      
     elif row == "LoggingEnabled":
       if gconfig["logging"] == 1:
-        list.append(1)
+        result.append(1)
       else:
-        list.append(0)
+        result.append(0)
     elif row == "CanFindLoggingChannel":
       if gconfig["logging"] == None:
-        list.append(0)
+        result.append(0)
       else:
-        list.append(1)
+        result.append(1)
     elif row == "LoggingChannelValid":
+      try:
+        discord.utils.get(ctx.guid.text_channels, id=gconfig['loggingChannel'])
+      except:
+        result.append(0)
+      else:
+        result.append(1)
     elif row == "CanMsgLoggingChannel":
-
+      result.append(2) # idk how to do this
     elif row == "ModmailEnabled":
       if gconfig["modmail"] == 1:
-        list.append(1)
+        result.append(1)
       else:
-        list.append(0)
+        result.append(0)
     elif row == "CanFindModmailChannel":
+      if gconfig["modmail"] == None:
+        result.append(0)
+      else:
+        result.append(1)
     elif row == "ModmailChannelValid":
+      try:
+        discord.utils.get(ctx.guid.text_channels, id=gconfig['modmailChannel'])
+      except:
+        result.append(0)
+      else:
+        result.append(1)
     elif row == "CanMsgModmailChannel":
-      
+      result.append(2)
+  return result
 
 # fetches user tiers
 async def getusertier(ctx,user):
@@ -456,6 +473,10 @@ async def point(ctx, amount, user: discord.Member, reason = None):
   except asyncio.TimeoutError:
           return
   r = 0
+
+@slash.slash(name="debug", description="Run through everything and make sure there is no misconfigurations",guild_ids=config.guild_ids)
+async def debug(ctx):
+  await discovererror(ctx,["MuteRole","CanFindMuteRole","AttemptMute","ModRole","CanFindModRole","MemberRole",])
 # endregion
 rempoint.start()
 autoremovepunish.start()
