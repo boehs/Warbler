@@ -60,6 +60,12 @@ else:
 
 # region: defs
 
+# converts list to emoji
+async def listtoemoji(l):
+  dic = {1:'✅', 0:'❌', 2:'⚠️'}
+  words = [dic.get(n, n) for n in l]
+  return words
+
 # fetches and returns the config of a spesific guild for parsing
 async def getguildconfig(guild,returnchoice = None):
   with connection:
@@ -72,9 +78,18 @@ async def getguildconfig(guild,returnchoice = None):
     
   if returnchoice == None:
     return result
-  
+
+
+# pretty print 
+async def dumpkeys(dic):
+  string = ""
+  for x in dic:
+      string += (str(x)+"\n")
+      for y in str(dic[x]):
+          string += (str(y)+':'+str(dic[x][y])+"\n")
+        
 async def discovererror(ctx,discovery):
-  gconfig = getguildconfig(ctx.guild)
+  gconfig = await getguildconfig(ctx.guild)
   result = []
   for row in discovery:
     if row == "MuteRole":
@@ -83,10 +98,9 @@ async def discovererror(ctx,discovery):
       else:
         result.append(1)
     elif row == "CanFindMuteRole":
-      try:
-        role = discord.utils.get(ctx.guild.roles,id=gconfig['muteRole'])
-      except:
-        result.append(0)  
+      role = discord.utils.get(ctx.guild.roles,id=gconfig['muteRole'])
+      if role == None:
+        result.append(0)
       else:
         result.append(1)
     elif row == "AttemptMute":
@@ -94,6 +108,7 @@ async def discovererror(ctx,discovery):
       member = ctx.guild.get_member(bot.user.id)
       try:
         await member.add_roles(role)
+        await member.remove_roles(role)
       except:
         result.append(0)  
       else:
@@ -105,10 +120,9 @@ async def discovererror(ctx,discovery):
       else:
         result.append(1)
     elif row == "CanFindModRole":
-      try:
-        role = discord.utils.get(ctx.guild.roles,id=gconfig['modRole'])
-      except:
-        result.append(0)  
+      role = discord.utils.get(ctx.guild.roles,id=gconfig['modRole'])
+      if role == None:
+        result.append(0)
       else:
         result.append(1)
         
@@ -118,26 +132,24 @@ async def discovererror(ctx,discovery):
       else:
         result.append(1)
     elif row == "CanFindMemberRole":
-      try:
-        role = discord.utils.get(ctx.guild.roles,id=gconfig['memberRole'])
-      except:
-        result.append(0)  
+      role = discord.utils.get(ctx.guild.roles,id=gconfig['memberRole'])
+      if role == None:
+        result.append(0)
       else:
-        result.append(1)      
+        result.append(1)  
     elif row == "LoggingEnabled":
       if gconfig["logging"] == 1:
         result.append(1)
       else:
         result.append(0)
     elif row == "CanFindLoggingChannel":
-      if gconfig["logging"] == None:
+      if gconfig["loggingChannel"] == None:
         result.append(0)
       else:
         result.append(1)
     elif row == "LoggingChannelValid":
-      try:
-        discord.utils.get(ctx.guid.text_channels, id=gconfig['loggingChannel'])
-      except:
+      channel = discord.utils.get(ctx.guild.text_channels, id=gconfig['loggingChannel'])
+      if channel == None:
         result.append(0)
       else:
         result.append(1)
@@ -149,19 +161,19 @@ async def discovererror(ctx,discovery):
       else:
         result.append(0)
     elif row == "CanFindModmailChannel":
-      if gconfig["modmail"] == None:
+      if gconfig["modmailChannel"] == None:
         result.append(0)
       else:
         result.append(1)
     elif row == "ModmailChannelValid":
-      try:
-        discord.utils.get(ctx.guid.text_channels, id=gconfig['modmailChannel'])
-      except:
+      channel = discord.utils.get(ctx.guild.text_channels, id=gconfig['modmailChannel'])
+      if channel == None:
         result.append(0)
       else:
         result.append(1)
     elif row == "CanMsgModmailChannel":
       result.append(2)
+  print(str(result))
   return result
 
 # fetches user tiers
@@ -476,7 +488,15 @@ async def point(ctx, amount, user: discord.Member, reason = None):
 
 @slash.slash(name="debug", description="Run through everything and make sure there is no misconfigurations",guild_ids=config.guild_ids)
 async def debug(ctx):
-  await discovererror(ctx,["MuteRole","CanFindMuteRole","AttemptMute","ModRole","CanFindModRole","MemberRole",])
+  l = await discovererror(ctx,["MuteRole","CanFindMuteRole","AttemptMute","ModRole","CanFindModRole","MemberRole","CanFindMemberRole","LoggingEnabled","CanFindLoggingChannel","LoggingChannelValid","CanMsgLoggingChannel","ModmailEnabled","CanFindModmailChannel","ModmailChannelValid","CanMsgModmailChannel"])
+  l = await listtoemoji(l)
+  await ctx.send(l[0]+": We have mute role\n        "+l[1]+": Matching role exists\n        "+l[2]+": Can mute myself (note does not mean I can mute ANYONE)\n"+l[3]+": We have mod role\n        "+l[4]+": Matching role exists\n"+l[5]+": We have member role\n        "+l[6]+": Matching role exists\n"+l[7]+": Logging enabled\n        "+l[8]+"We have logging channel stored\n        "+l[9]+": Matching channel exists\n        "+l[10]+": Can message logging channel\n"+l[11]+": Modmail enabled\n        "+l[12]+"We have modmail channel stored\n        "+l[13]+": Matching channel exists\n        "+l[14]+": Can message modmail channel\n ────────── \n ✅: It works!\n❌: Oops looks like a issue on your end\n⚠️: Our fault not yours")
+
+@slash.subcommand(base="config",name="view",description="view your servers configuration",guild_ids=config.guild_ids)
+async def view(ctx):
+  dict = await getguildconfig(ctx.guild)
+  await dumpkeys(dict)
+  await ctx.send(dict,hidden=True)
 # endregion
 rempoint.start()
 autoremovepunish.start()
