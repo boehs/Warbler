@@ -60,6 +60,20 @@ else:
 
 # region: defs
 
+# okay
+async def prettyprint(dic):
+  mystr = ""
+  for row in dic:
+      if row in ["modRole","muteRole","memberRole"]:
+          v = row+": <@&"+str(dic[row]) + ">\n"
+      elif row in ["loggingChannel","modmailChannel"]:
+          v = row+": <#"+str(dic[row]) + ">\n"
+      else:
+          v = row+": "+str(dic[row]) + "\n"
+      mystr = mystr + v
+  repls = ('1', '✅'), ('❌', 'earth')
+  return mystr
+
 # converts list to emoji
 async def listtoemoji(l):
   dic = {1:'✅', 0:'❌', 2:'⚠️'}
@@ -495,7 +509,7 @@ async def debug(ctx):
 @slash.subcommand(base="config",name="view",description="view your servers configuration",guild_ids=config.guild_ids)
 async def view(ctx):
   dict = await getguildconfig(ctx.guild)
-  await dumpkeys(dict)
+  dict = await prettyprint(dict)
   await ctx.send(dict,hidden=True)
 # endregion
 rempoint.start()
