@@ -6,3 +6,9 @@ punishconfig.sql
 __pycache__
 warbler*
 tempCodeRunnerFile*.*
+/.idea/.gitignore
+/fuck.py
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/inspectionProfiles/profiles_settings.xml
+/.idea/vcs.xml
