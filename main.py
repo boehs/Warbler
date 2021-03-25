@@ -84,19 +84,27 @@ Finally, a bird fact
 helpadmin = """
 **Hey! 👋**
 thanks for all the awesome things you do! lets talk!
+Try using the buttons below to navigate
 ───────────
+**Simple Commands**
 `wDebug`: Try to execute a bunch of mod stuff and give feedback on how it went!
 `wHelp`: Woah, I aint making assumptions, but you should know what this does
-`wConfigView`: Shows you your server config except `punishTiers`
+`wConfigView`: Shows you your server config except for `punishTiers` (More on that later!)
+--------
+On the next page we will cover detailed docs on updating your config!
 ───────────
+**Updating Config**
 `wConfigUpdate <configname> <newvalue>` This works for all config values except `punishTiers`
 **configname**: the name of the config row you want to modify (get from `wConfigView`, case sensitive)
 **newvalue**: the new value for the config row, please follow this schema (case sensitive):
 *On/Off*: For rows with ✅ or ❌ as their value, write `true` for `On/True/Yes`, and `false` for `Off/False/No`
 *List*: For rows with a comma separated list, separate each value with a comma. *ie*: `friend,enemy,warbler` (note this OVERRIDES. if you want to only modify a few values, copy the list from `wConfigView`)
-**Channels,Users,Roles*. For rows that mention a channel, user, or role, simply ping the channel/user/role. we will do the rest.
+*Channels,Users,Roles*. For rows that mention a channel, user, or role, simply ping the channel/user/role. we will do the rest.
 *Numbers/Text* just write the numbers or text!
+--------
+On the next page we will talk about updating tiers
 ───────────
+**Updating and viewing tiers**
 `wTiersView`: Pretty prints your servers current tiers
 `wTiersUpdate <tier> <punishtype> <duration>`: Updates the given tier.
 if you wish to *delete* a tier, fill it out as `wTiersUpdate <tier> delete delete`. the tiers will automatically shift to fill the gap
@@ -128,9 +136,12 @@ bans a user
 <punishtype> = `ban`
 <duration> = `0` = forever, else time in seconds.
 **if you want custom days to remove messages, write `<banduration>-<daysremovemessages>` ie: `0-5` for a forever ban with 5 days of message removal
-this defaults to 1 day of message removel unless specified
+this defaults to 1 day of message removal unless specified
+--------
+On the next page we will talk about automatic point removal
 ───────────
-**Auto Point Removal** if you want, you can set the time for points to be reduced by one. this defaults to two weeks.
+**Auto Point Removal** 
+if you want, you can set the time for points to be reduced by one. this defaults to two weeks.
 if you wish for it to be NEVER, set the time to zero. if you wish for it to be instant (in case you just want to have consistent punish levels), set the time to 1.
 like always, this is in seconds.
 ───────────
@@ -212,7 +223,7 @@ async def listtoemoji(l):
     return words
 
 
-# fetches and returns the config of a spesific guild for parsing
+# fetches and returns the config of a specific guild for parsing
 async def getguildconfig(guild, returnchoice=None):
     with connection:
         with connection.cursor() as cursor:
@@ -222,7 +233,7 @@ async def getguildconfig(guild, returnchoice=None):
             result = cursor.fetchone()
             print(result)
 
-    if returnchoice == None:
+    if returnchoice is None:
         return result
 
 
@@ -392,7 +403,7 @@ async def autoremovepunish():
 
 # handout punishments like candy
 async def punish(ctx, offender, reason):
-    if reason == None:
+    if reason is None:
         reason = "None"
 
     async def mute(offender, time):
@@ -477,7 +488,7 @@ async def punish(ctx, offender, reason):
             print("Kick")
     elif punishtypes[n][0] == 'm':
         if punishtypes[n][1] == 0:
-            print("Mute (forever)")
+            await mute(offender, "forever")
         else:
             await mute(offender, punishtypes[n][1])
     elif punishtypes[n][0] == 'sb':
@@ -707,8 +718,9 @@ async def view(ctx):
 @bot.command(name="Help")
 @commands.has_permissions(manage_guild=True)
 async def help(ctx):
-    x = map(lambda s: s + '──────────', helpadmin.split('──────────'))
-    pages = SearchMenu(source=ListPageSource(list(x), per_page=1), delete_message_after=1,ignore_removal=True)
+    await ctx.message.delete()
+    x = map(lambda s: s + '───────────', helpadmin.split('───────────'))
+    pages = SearchMenu(source=ListPageSource(list(x), per_page=1), delete_message_after=1, ignore_removal=True)
     await pages.start(ctx)
 
 
