@@ -5,7 +5,7 @@ attrs==20.3.0
 certifi==2020.12.5
 chardet==4.0.0
 discord==1.0.1
-discord-py-slash-command==1.0.9.5
+discord-py-slash-command==1.1.0
 discord.py==1.6.0
 humanize==3.3.0
 idna==2.10
