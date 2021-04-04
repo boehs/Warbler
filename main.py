@@ -273,7 +273,7 @@ async def discovererror(ctx, discovery):
                 result.append(1)
 
         if row == "ModRole":
-            if gconfig["modRole"] == None:
+            if gconfig["modRole"] is None:
                 result.append(0)
             else:
                 result.append(1)
@@ -285,13 +285,13 @@ async def discovererror(ctx, discovery):
                 result.append(1)
 
         elif row == "MemberRole":
-            if gconfig["memberRole"] == None:
+            if gconfig["memberRole"] is None:
                 result.append(0)
             else:
                 result.append(1)
         elif row == "CanFindMemberRole":
             role = discord.utils.get(ctx.guild.roles, id=gconfig['memberRole'])
-            if role == None:
+            if role is None:
                 result.append(0)
             else:
                 result.append(1)
@@ -301,13 +301,13 @@ async def discovererror(ctx, discovery):
             else:
                 result.append(0)
         elif row == "CanFindLoggingChannel":
-            if gconfig["loggingChannel"] == None:
+            if gconfig["loggingChannel"] is None:
                 result.append(0)
             else:
                 result.append(1)
         elif row == "LoggingChannelValid":
             channel = discord.utils.get(ctx.guild.text_channels, id=gconfig['loggingChannel'])
-            if channel == None:
+            if channel is None:
                 result.append(0)
             else:
                 result.append(1)
@@ -319,13 +319,13 @@ async def discovererror(ctx, discovery):
             else:
                 result.append(0)
         elif row == "CanFindModmailChannel":
-            if gconfig["modmailChannel"] == None:
+            if gconfig["modmailChannel"] is None:
                 result.append(0)
             else:
                 result.append(1)
         elif row == "ModmailChannelValid":
             channel = discord.utils.get(ctx.guild.text_channels, id=gconfig['modmailChannel'])
-            if channel == None:
+            if channel is None:
                 result.append(0)
             else:
                 result.append(1)
@@ -421,7 +421,7 @@ async def punish(ctx, offender, reason):
 
     async def warn(offender, final):
         # f = final warning
-        if final == True:
+        if final:
             await offender.send(
                 "You have been warned! this is your final shot, so please be careful! \n- the Warbler team")
         else:
@@ -582,8 +582,12 @@ async def checkpoints(ctx, user: discord.Member):
 @slash.slash(name="help", guild_ids=config.guild_ids,
              description="you should know this already - but maybe you just want bird facts")
 async def help(ctx):
-    await ctx.send(helpstart + helpend + random.choice(birdfacts), hidden=True)
     await ctx.respond(eat=True)
+
+    if ctx.author.guild_permissions.manage_guild:
+        await ctx.send(helpstart + helpadminnotice + helpend + random.choice(birdfacts), hidden=True)
+    else:
+        await ctx.send(helpstart + helpend + random.choice(birdfacts), hidden=True)
 
 
 r = 0  # fix a bug with discord api
