@@ -7,7 +7,7 @@ chardet==4.0.0
 discord==1.0.1
 discord-py-slash-command==1.0.9.5
 discord.py==1.6.0
-humanize==3.3.0
+humanize==3.4.0
 idna==2.10
 multidict==5.1.0
 PyMySQL==0.9.3
