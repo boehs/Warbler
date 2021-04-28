@@ -225,25 +225,25 @@ async def listtoemoji(l):
 
 # fetches and returns the config of a specific guild for parsing
 async def getguildconfig(guild, returnchoice=None):
-    with connection:
-        with connection.cursor() as cursor:
-            print("Got call")
-            sql = "SELECT * FROM guilds WHERE guildId = %s"
-            cursor.execute(sql, guild.id)
-            result = cursor.fetchone()
-            print(result)
+    print("Got call")
+    sql = "SELECT * FROM guilds WHERE guildId = %s"
+    result = fetchone(sql, guild.id)
+    print(result)
 
     if returnchoice is None:
         return result
 
 
-# pretty print 
-async def dumpkeys(dic):
-    string = ""
-    for x in dic:
-        string += (str(x) + "\n")
-        for y in str(dic[x]):
-            string += (str(y) + ':' + str(dic[x][y]) + "\n")
+async def fetchone(sql,data = None):
+    with connection:
+        with connection.cursor() as cursor:
+            print("Got call")
+            sql = "SELECT * FROM guilds WHERE guildId = %s"
+            if data is None:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql,data)
+            return cursor.fetchone()
 
 
 async def discovererror(ctx, discovery):
