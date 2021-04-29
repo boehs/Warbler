@@ -237,14 +237,21 @@ async def getguildconfig(guild, returnchoice=None):
 async def fetchone(sql,data = None):
     with connection:
         with connection.cursor() as cursor:
-            print("Got call")
-            sql = "SELECT * FROM guilds WHERE guildId = %s"
             if data is None:
                 cursor.execute(sql)
             else:
                 cursor.execute(sql,data)
             return cursor.fetchone()
 
+async def update(sql,data = None):
+    with connection:
+        with connection.cursor() as cursor:
+            if data is None:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql,data)
+
+        connection.commit()
 
 async def discovererror(ctx, discovery):
     gconfig = await getguildconfig(ctx.guild)
@@ -337,37 +344,24 @@ async def discovererror(ctx, discovery):
 
 # fetches user tiers
 async def getusertier(ctx, user):
-    with connection:
-        with connection.cursor() as cursor:
-            sql = "SELECT punishTier FROM punish WHERE userId = %s AND guildId = %s"
-            cursor.execute(sql, (user.id, ctx.guild.id))
-            result = cursor.fetchone()
-            result = result['punishTier']
+    sql = "SELECT punishTier FROM punish WHERE userId = %s AND guildId = %s"
+    result = fetchone(sql, (user.id, ctx.guild.id))
+    result = result['punishTier']
     return result
 
 
 # purges uses with 0 points
 async def cleanup():
-    with connection:
-        with connection.cursor() as cursor:
-            sql = "DELETE FROM punish WHERE punishTier = 0 AND punishType is NULL"
-
-            cursor.execute(sql)
-
-        connection.commit()
-        print("Completed cleanup")
+    sql = "DELETE FROM punish WHERE punishTier = 0 AND punishType is NULL"
+    update(sql)
+    print("Completed cleanup")
 
 
 # remove a point from those with over two weeks of age
 @loop(seconds=300)
 async def rempoint():
-    with connection:
-        with connection.cursor() as cursor:
-            sql = "UPDATE punish SET punishTier = punishTier - 1 WHERE updateTime < (NOW() - INTERVAL 20160 MINUTE);"
-
-            cursor.execute(sql)
-
-        connection.commit()
+    sql = "UPDATE punish SET punishTier = punishTier - 1 WHERE updateTime < (NOW() - INTERVAL 20160 MINUTE);"
+    update(sql)
     print("Completed auto point removal")
     await cleanup()
 
@@ -391,11 +385,8 @@ async def autoremovepunish():
                 elif u['punishType'] == 'm':
                     role = discord.utils.get(guild.roles, name='Muted')
                     await member.remove_roles(role)
-                with connection:
-                    with connection.cursor() as cursor:
-                        sql = "UPDATE punish SET punishLength = NULL, punishType = NULL WHERE userId = %s AND guildId = %s"
-                        cursor.execute(sql, (u['userId'], u['guildId']))
-                connection.commit()
+                sql = "UPDATE punish SET punishLength = NULL, punishType = NULL WHERE userId = %s AND guildId = %s"
+                update(sql, (u['userId'], u['guildId']))
                 await user.send(
                     "cool mate. your punishment is over. welcome back and be good! next time your going to the dungeon :O")
     print("Completed auto punish removal")
@@ -430,19 +421,16 @@ async def punish(ctx, offender, reason):
 
     async def ban(offender, time):
         if time == "forever":
-            with connection:
-                with connection.cursor() as cursor:
-                    sql = "UPDATE punish SET punishType = 'p' WHERE userId = %s AND guildId = %s"
-                    var = (offender.id, ctx.guild.id)
-                    cursor.execute(sql, var)
+            sql = "UPDATE punish SET punishType = 'p' WHERE userId = %s AND guildId = %s"
+            var = (offender.id, ctx.guild.id)
+            update(sql, var)
 
-                connection.commit()
-                await offender.send(
-                    "You have been permabanned. we are sorry it had to come to this.\n**Reason**: " + reason + "\n- the Warbler team")
-                if reason == "None":
-                    await ctx.guild.ban(offender, delete_message_days=1)
-                else:
-                    await ctx.guild.ban(offender, delete_message_days=1, reason=reason)
+            await offender.send(
+                "You have been permabanned. we are sorry it had to come to this.\n**Reason**: " + reason + "\n- the Warbler team")
+            if reason == "None":
+                await ctx.guild.ban(offender, delete_message_days=1)
+            else:
+                await ctx.guild.ban(offender, delete_message_days=1, reason=reason)
         else:
             with connection:
                 with connection.cursor() as cursor:
@@ -561,21 +549,17 @@ async def checkpoints(ctx, user: discord.Member):
                                                                          id=gconfig['modRole']) in ctx.author.roles:
         await ctx.respond(eat=True)
         return
-    with connection:
-        with connection.cursor() as cursor:
-            try:
-                sql = "SELECT punishTier FROM punish WHERE userId = %s AND guildId = %s"
-                cursor.execute(sql, (user.id, ctx.guild.id))
-                result = cursor.fetchone()
-
-                result = result['punishTier']
-                await ctx.send(
-                    "**Ok!** we found the user! at time of checking, they have **" + str(result) + "** points",
-                    hidden=True)
-            except TypeError:
-                await ctx.send(
-                    "**Awesome**, " + user.mention + " Currently has **no points**. thanks for being a great person!",
-                    hidden=True)
+    try:
+        sql = "SELECT punishTier FROM punish WHERE userId = %s AND guildId = %s"
+        result = fetchone(sql, (user.id, ctx.guild.id))
+        result = result['punishTier']
+        await ctx.send(
+            "**Ok!** we found the user! at time of checking, they have **" + str(result) + "** points",
+            hidden=True)
+    except TypeError:
+        await ctx.send(
+            "**Awesome**, " + user.mention + " Currently has **no points**. thanks for being a great person!",
+            hidden=True)
     await ctx.respond(eat=True)
 
 
@@ -632,26 +616,23 @@ async def point(ctx, amount, user: discord.Member, reason=None):
                 amount = callresult['maxPointGrant']
     except TypeError:
         pass
-    with connection:
-        with connection.cursor() as cursor:
-            try:
-                sql = "SELECT punishTier FROM punish WHERE userId = %s AND guildId = %s"
-                cursor.execute(sql, (user.id, ctx.guild.id))
-                result = cursor.fetchone()
-                result = result['punishTier']
-            except TypeError:
-                success = False
-            else:
-                success = True
-                mathishard = int(result) + int(amount)
-                if mathishard < 0:
-                    mathishard = 0
-                    amount = 0
-                if r == 0:
-                    await ctx.channel.send("We already have the user. they have **" + str(
-                        result) + "** points. after this, they will have **" + str(
-                        mathishard) + "** points. **are you sure?** (**y** or **n**)")
-                    r = r + 1
+    try:
+        sql = "SELECT punishTier FROM punish WHERE userId = %s AND guildId = %s"
+        result = fetchone(sql, (user.id, ctx.guild.id))
+        result = result['punishTier']
+    except TypeError:
+        success = False
+    else:
+        success = True
+        mathishard = int(result) + int(amount)
+        if mathishard < 0:
+            mathishard = 0
+            amount = 0
+        if r == 0:
+            await ctx.channel.send("We already have the user. they have **" + str(
+                result) + "** points. after this, they will have **" + str(
+                mathishard) + "** points. **are you sure?** (**y** or **n**)")
+            r = r + 1
     if not success:
         if amount < 0:
             amount = 0
