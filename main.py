@@ -34,7 +34,9 @@ allowed_mentions = discord.AllowedMentions(roles=False)
 
 birdfacts = ["Lucy's warbler is the smallest known species of warbler!",
              "my pfp came from <https://www.drawingtenthousandbirds.com/new-blog-1/2015/4/18/why-a-yellow-warbler>",
-             "There are 119 species of warbler"]
+             "There are 119 species of warbler",
+             "I was inspired by my (now enemy) pigion bot that was not open source :(. I am now better than her so *dabs*"
+             ]
 
 wordblacklist = open("config/blacklist.txt", "r")
 wordblacklist = wordblacklist.readlines()
@@ -53,7 +55,7 @@ workarounds = re.compile('[^a-zA-Z]')
 
 bot.remove_command("help")
 try:
-    connection = pymysql.connect(host='localhost', user='root', password='root', database='warbler',
+    connection = pymysql.connect(host='localhost', user=config.username, password=config.password, database='warbler',
                                  cursorclass=pymysql.cursors.DictCursor)
 except pymysql.err.InternalError:
     print("Error: You must have a my sql instence running and a database called 'warbler'")
@@ -113,28 +115,28 @@ if you wish to *update* a tier, fill it out as normal.
 **punishtypes**:
 *remove*
 removes all punishments **HIGHLY RECOMNEDED AS TIER 0**
-<punishtype> = `remove`
-<duration> = `0`
+`<punishtype>` = `remove`
+`<duration>` = `0`
 *warn*
 warns a user
-<punishtype> = `warn`
-<duration> = `0` - light warning, `1` - hard warning (removes member role)
+`<punishtype>` = `warn`
+`<duration>` = `0` - light warning, `1` - hard warning (removes member role)
 *mute*
 assigns the mute role
-<punishtype> = `mute`
-<duration> = `0` - `forever`, else time in seconds.
+`<punishtype>` = `mute`
+`<duration>` = `0` - `forever`, else time in seconds.
 *kick*
 kicks a user
-<punishtype> = `kick`
-<duration> = `0`
+`<punishtype>` = `kick`
+`<duration>` = `0`
 *softban*
 bans to delete a users message
-<punishtype> = `softban`
-<duration> = `0-7` - days to remove messages, min 0, max 7
+`<punishtype>` = `softban`
+`<duration>` = `0-7` - days to remove messages, min 0, max 7
 *ban*
 bans a user
-<punishtype> = `ban`
-<duration> = `0` = forever, else time in seconds.
+`<punishtype>` = `ban`
+`<duration>` = `0` = forever, else time in seconds.
 **if you want custom days to remove messages, write `<banduration>-<daysremovemessages>` ie: `0-5` for a forever ban with 5 days of message removal
 this defaults to 1 day of message removal unless specified
 --------
@@ -161,19 +163,14 @@ class ListPageSource(menus.ListPageSource):
 
 
 class SearchMenu(menus.MenuPages, inherit_buttons=False):
-    async def uncheck(self, reaction):
-        await self.message.remove_reaction(reaction, self.ctx.author)
-
     @menus.button('◀', position=menus.First(0))
     async def go_to_previous_page(self, payload):
         """go to the previous page"""
-        await SearchMenu.uncheck(self, "◀")
         await self.show_checked_page(self.current_page - 1)
 
     @menus.button('▶', position=menus.Last(0))
     async def go_to_next_page(self, payload):
         """go to the next page"""
-        await SearchMenu.uncheck(self, "▶")
         await self.show_checked_page(self.current_page + 1)
 
     @menus.button('\N{BLACK SQUARE FOR STOP}\ufe0f', position=menus.Last(1))
@@ -360,7 +357,8 @@ async def cleanup():
 # remove a point from those with over two weeks of age
 @loop(seconds=300)
 async def rempoint():
-    sql = "UPDATE punish SET punishTier = punishTier - 1 WHERE updateTime < (NOW() - INTERVAL 20160 MINUTE);"
+    # TODO: Add option to change removal interval as well as option to remove punishments even if a punishment is being served (perhaps settings to configure what it works on, say only mutes)
+    sql = "UPDATE punish SET punishTier = punishTier - 1 WHERE updateTime < (NOW() - INTERVAL 20160 MINUTE) AND punishType is NULL;"
     update(sql)
     print("Completed auto point removal")
     await cleanup()
@@ -396,19 +394,22 @@ async def autoremovepunish():
 async def punish(ctx, offender, reason):
     if reason is None:
         reason = "None"
+    
+    # NOTE: This triggers autoremovepunish()
+    async def remove(offender):
+        sql = "UPDATE punish SET punishLength = 0 WHERE userId = %s AND guildId = %s"
+        var = (offender.id, ctx.guild.id)
+        update(sql, var)
 
+        
     async def mute(offender, time):
-        with connection:
-            with connection.cursor() as cursor:
-                sql = "UPDATE punish SET punishLength = %s, punishType = 'm' WHERE userId = %s AND guildId = %s"
-                var = (time, offender.id, ctx.guild.id)
-                cursor.execute(sql, var)
-
-            connection.commit()
-            role = discord.utils.get(ctx.guild.roles, name='Muted')
-            await offender.add_roles(role)
-            await offender.send("You have been muted for **" + humanize.naturaldelta(
-                dt.timedelta(seconds=time)) + " **. Please stay safe!\n**Reason**: " + reason + "\n- the Warbler team")
+        sql = "UPDATE punish SET punishLength = %s, punishType = 'm' WHERE userId = %s AND guildId = %s"
+        var = (time, offender.id, ctx.guild.id)
+        update(sql, var)
+        role = discord.utils.get(ctx.guild.roles, name='Muted')
+        await offender.add_roles(role)
+        await offender.send("You have been muted for **" + humanize.naturaldelta(
+            dt.timedelta(seconds=time)) + " **. Please stay safe!\n**Reason**: " + reason + "\n- the Warbler team")
 
     async def warn(offender, final):
         # f = final warning
@@ -432,19 +433,17 @@ async def punish(ctx, offender, reason):
             else:
                 await ctx.guild.ban(offender, delete_message_days=1, reason=reason)
         else:
-            with connection:
-                with connection.cursor() as cursor:
-                    sql = "UPDATE punish SET punishLength = %s, punishType = 'b' WHERE userId = %s AND guildId = %s"
-                    var = (time, offender.id, ctx.guild.id)
-                    cursor.execute(sql, var)
 
-                connection.commit()
-                await offender.send("You have been banned for. **" + humanize.naturaldelta(
-                    dt.timedelta(seconds=time)) + " **. we are sorry it had to come to this. \n- the Warbler team")
-                if reason == "None":
-                    await ctx.guild.ban(offender, delete_message_days=1)
-                else:
-                    await ctx.guild.ban(offender, delete_message_days=1, reason=reason)
+            sql = "UPDATE punish SET punishLength = %s, punishType = 'b' WHERE userId = %s AND guildId = %s"
+            var = (time, offender.id, ctx.guild.id)
+            update(sql, var)
+
+            await offender.send("You have been banned for. **" + humanize.naturaldelta(
+                dt.timedelta(seconds=time)) + " **. we are sorry it had to come to this. \n- the Warbler team")
+            if reason == "None":
+                await ctx.guild.ban(offender, delete_message_days=1)
+            else:
+                await ctx.guild.ban(offender, delete_message_days=1, reason=reason)
 
     # [["r"="purge user of all punishments","w"=Warn (0=warning,1=finalwarning),"m"=mute,"b"=ban(0=forever)],[n=punishtime(seconds)]]
     punishtypes = [["r", 0],
@@ -457,7 +456,7 @@ async def punish(ctx, offender, reason):
                    ["m", 3600],
                    ["m", 43200],
                    ["m", 86400],
-                   ["b", 259200, ],
+                   ["b", 259200],
                    ["b", 432000],
                    ["b", 604800],
                    ["b", 1210000],
@@ -465,7 +464,7 @@ async def punish(ctx, offender, reason):
                    ["b", 0]]
     n = await getusertier(ctx, offender)
     if punishtypes[n][0] == 'r':
-        print("Removing all punishments, " + str(punishtypes[n][1]))
+        remove(offender)
     elif punishtypes[n][0] == 'w':
         if punishtypes[n][1] == 0:
             await warn(offender, False)
@@ -647,21 +646,14 @@ async def point(ctx, amount, user: discord.Member, reason=None):
         if message.content.startswith("y"):
             await ctx.channel.send("**Got it!** giving " + user.mention + " the treatment they deserve!")
             if success:
-                with connection:
-                    with connection.cursor() as cursor:
-                        sql = "UPDATE punish SET punishTier = %s, punishTime = %s WHERE userId = %s AND guildId = %s"
-                        var = (int(mathishard), int(time.time()), int(user.id), int(ctx.guild.id))
-                        cursor.execute(sql, var)
-
-                    connection.commit()
+                sql = "UPDATE punish SET punishTier = %s, punishTime = %s WHERE userId = %s AND guildId = %s"
+                var = (int(mathishard), int(time.time()), int(user.id), int(ctx.guild.id))
+                update(sql, var)
             elif not success:
-                with connection:
-                    with connection.cursor() as cursor:
-                        sql = "INSERT INTO punish ( userId, punishTier, punishTime, guildId ) VALUES ( %s, %s, %s, %s )"
-                        var = (int(user.id), int(amount), int(time.time()), ctx.guild.id)
-                        cursor.execute(sql, var)
+                sql = "INSERT INTO punish ( userId, punishTier, punishTime, guildId ) VALUES ( %s, %s, %s, %s )"
+                var = (int(user.id), int(amount), int(time.time()), ctx.guild.id)
+                update(sql, var)
 
-                    connection.commit()
             await punish(ctx, user, reason)
             await cleanup()
         elif message.content.startswith("n"):
@@ -702,10 +694,10 @@ async def view(ctx):
 
 @bot.command(name="Help")
 @commands.has_permissions(manage_guild=True)
-async def help(ctx):
+async def adminhelp(ctx):
     await ctx.message.delete()
     x = map(lambda s: s + '───────────', helpadmin.split('───────────'))
-    pages = SearchMenu(source=ListPageSource(list(x), per_page=1), delete_message_after=1, ignore_removal=True)
+    pages = SearchMenu(source=ListPageSource(list(x), per_page=1), delete_message_after=1)
     await pages.start(ctx)
 
 
