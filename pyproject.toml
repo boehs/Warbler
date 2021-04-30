@@ -7,7 +7,7 @@ authors = ["Your Name <you@example.com>"]
 [tool.poetry.dependencies]
 python = "^3.8"
 "discord.py" = "^1.6.0"
-python-dotenv = "^0.17.0"
+python-dotenv = "^0.17.1"
 
 [tool.poetry.dev-dependencies]
 
